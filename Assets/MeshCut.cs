@@ -1,11 +1,6 @@
 using System.Collections.Generic;
-using System.Diagnostics;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.UIElements;
-using UnityEngine.XR;
 using static MeshCut;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 // unityメッシュ
 // https://qiita.com/keito_takaishi/items/8e56d5117ee90502e864
@@ -29,6 +24,8 @@ public class MeshCut : MonoBehaviour
 
     // 板
     [SerializeField] private Transform _planeTransform;
+    [SerializeField] private Vector3 _planePosition;
+    [SerializeField] private Vector3 _planeNormal;
     // 無限遠平面
     private Plane _plane;
 
@@ -53,32 +50,15 @@ public class MeshCut : MonoBehaviour
     public void GetMeshInfo(GameObject subject)
     {
         _meshFilter = subject.GetComponent<MeshFilter>();
-        //_vertices = new List<Vector3>(filter.mesh.vertices);
         _vertices = new List<Vector3>(_meshFilter.sharedMesh.vertices);
         _normals = new List<Vector3>(_meshFilter.sharedMesh.normals);
         _uvs = new List<Vector2>(_meshFilter.sharedMesh.uv);
         _triangles = new List<int>(_meshFilter.sharedMesh.triangles);
-    }
-
-    public void AddTriangle(VertexData p1, VertexData p2, VertexData p3)
-    {
-        int index = _vertices.Count;
-        _vertices.Add(p1.Position);
-        _normals.Add(p1.Normal);
-        _uvs.Add(p1.Uv);
-
-        _vertices.Add(p2.Position);
-        _normals.Add(p2.Normal);
-        _uvs.Add(p2.Uv);
-
-        _vertices.Add(p3.Position);
-        _normals.Add(p3.Normal);
-        _uvs.Add(p3.Uv);
-
-        _triangles.Add(index);
-        _triangles.Add(index + 1);
-        _triangles.Add(index + 2);
-
+        // 頂点の位置をワールド空間に変換
+        for(int i = 0; i < _vertices.Count;i++)
+        {
+            _vertices[i] = subject.transform.TransformPoint(_vertices[i]);
+        }
     }
 
     public VertexData GetVertexData(int index)
@@ -99,25 +79,24 @@ public class MeshCut : MonoBehaviour
         {
             var normalizedDistance = enter / (p2 - p1).magnitude;
             return normalizedDistance;
-
         }
         return 0f;
     }
 
     // 交点に頂点を生成
-    public VertexData ComputeIntersectionVertex(int index1, int index2)
+    public VertexData ComputeIntersectionVertex(int indexA, int indexB)
     {
         VertexData vert = new VertexData();
-        var pos1 = _vertices[index1];
-        var uv1 = _uvs[index1];
-        var nrm1 = _normals[index1];
-        var pos2 = _vertices[index2];
-        var uv2 = _uvs[index2];
-        var nrm2 = _normals[index2];
+        var pos1 = _vertices[indexA];
+        var uv1 = _uvs[indexA];
+        var nrm1 = _normals[indexA];
+        var pos2 = _vertices[indexB];
+        var uv2 = _uvs[indexB];
+        var nrm2 = _normals[indexB];
         var normalizedDistance = ComputeIntersection(pos1, pos2);
         vert.Position = Vector3.Lerp(pos1, pos2, normalizedDistance);
         vert.Normal = Vector3.Lerp(nrm1, nrm2, normalizedDistance);
-        vert.Uv = Vector3.Lerp(uv1, uv2, normalizedDistance);
+        vert.Uv = Vector2.Lerp(uv1, uv2, normalizedDistance);
         return vert;
 
     }
@@ -130,136 +109,249 @@ public class MeshCut : MonoBehaviour
 
     public void Start()
     {
+        MeshConstructionHelper.ClearMesh();
         GetMeshInfo(_subject);
         Cut(_subject);
+
+        // 元のオブジェクトを複製
+        //GameObject positiveObject = Instantiate(_subject);
+        GameObject negativeObject = Instantiate(_subject);
+
+        // 複製したオブジェクトに新しいメッシュを適用
+        var objectName = _subject.name;
+        _subject.name = objectName + "_Positive";
+        negativeObject.name = objectName + "_Negative";
+
+        MeshConstructionHelper.positiveMesh.InverseTransformPoints(_subject);
+        MeshConstructionHelper.negativeMesh.InverseTransformPoints(_subject);
+
+        _subject.GetComponent<MeshFilter>().mesh = MeshConstructionHelper.positiveMesh.ConstructMesh();
+        negativeObject.GetComponent<MeshFilter>().mesh = MeshConstructionHelper.negativeMesh.ConstructMesh();
+
+        _subject.GetComponent<MeshCollider>().sharedMesh = _subject.GetComponent<MeshFilter>().mesh;
+        negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
     }
 
     public void Cut(GameObject subject)
     {
         GetMeshInfo(subject);
-        _plane = new Plane(_planeTransform.up, _planeTransform.position);
-
+        _planeNormal = _planeTransform.up;
+        _planePosition = _planeTransform.position;
+        _plane = new Plane(_planeNormal, _planePosition); 
+        // 切断面に沿った点のリスト
+        List<VertexData> pointsAlongPlane = new List<VertexData>();
 
         bool[] sides = new bool[3];
+        // ポリゴンは三つの頂点で構成されるので３づつ増分して走査
         for (int i = 0; i < _triangles.Count; i += 3)
         {
-            int index1 = _triangles[i];
-            int index2 = _triangles[i+1];
-            int index3 = _triangles[i+2];
-            var v1 = GetVertexData(index1);
-            var v2 = GetVertexData(index2);
-            var v3 = GetVertexData(index3);
-            // それぞれの面との左右判定
-            sides[0] = ComputeSide(v1.Position);
-            sides[1] = ComputeSide(v2.Position);
-            sides[2] = ComputeSide(v3.Position);
+            // 三角形が保有する頂点のインデックスを取得
+            int indexA = _triangles[i];
+            int indexB = _triangles[i+1];
+            int indexC = _triangles[i+2];
+
+            // 頂点データ取得
+            var vA = GetVertexData(indexA);
+            var vB = GetVertexData(indexB);
+            var vC = GetVertexData(indexC);
+
+            // 頂点それぞれの面との左右判定
+            sides[0] = ComputeSide(vA.Position);
+            sides[1] = ComputeSide(vB.Position);
+            sides[2] = ComputeSide(vC.Position);
 
             bool isABSameSide = sides[0] == sides[1];
             bool isBCSameSide = sides[1] == sides[2];
 
+            // 全ての頂点が片側に寄っていればそのままどちらかのメッシュにポリゴンとして登録
             if (isABSameSide && isBCSameSide)
             {
-
+                MeshConstructionHelper helper = sides[0] ? MeshConstructionHelper.positiveMesh : MeshConstructionHelper.negativeMesh;
+                helper.AddMeshSection(vA, vB, vC);
             }
             else
             {
-                UnityEngine.Debug.Log("AAA!!!!?!!?!?");
-                // 交点の算出
                 VertexData intersectionD;
                 VertexData intersectionE;
-
+                MeshConstructionHelper helperA = sides[0] ? MeshConstructionHelper.positiveMesh : MeshConstructionHelper.negativeMesh;
+                MeshConstructionHelper helperB = sides[1] ? MeshConstructionHelper.positiveMesh : MeshConstructionHelper.negativeMesh;
+                MeshConstructionHelper helperC = sides[2] ? MeshConstructionHelper.positiveMesh : MeshConstructionHelper.negativeMesh;
+                // Cが片側にある
                 if (isABSameSide)
                 {
-                    intersectionD = ComputeIntersectionVertex(index1, index3);
-                    intersectionE = ComputeIntersectionVertex(index2, index3);
-                    AddMeshSection(v1, v2, intersectionE);
-                    AddMeshSection(v1, intersectionE, intersectionD);
-                    AddMeshSection(intersectionE, v3, intersectionD);
+                    // 交点の算出
+                    intersectionD = ComputeIntersectionVertex(indexA, indexC);  // AとC
+                    intersectionE = ComputeIntersectionVertex(indexB, indexC);  // BとC
+                    // 交点から新しく生成される二つの頂点で新しくポリゴンを形成する
+                    // ポリゴンはAB側は二つ、C側は一つ
+                    // ポリゴンに登録する頂点は反時計回りに順番
+                    helperA.AddMeshSection(vA, vB, intersectionE);              // A -> B -> E
+                    helperA.AddMeshSection(vA, intersectionE, intersectionD);   // A -> E -> D
+                    helperC.AddMeshSection(intersectionE, vC, intersectionD);   // E -> C -> D
                 }
+                // Aが片側にある
                 else if (isBCSameSide)
                 {
-                    intersectionD = ComputeIntersectionVertex(index2, index1);
-                    intersectionE = ComputeIntersectionVertex(index3, index1);
-                    AddMeshSection(v2, v3, intersectionE);
-                    AddMeshSection(v2, intersectionE, intersectionD);
-                    AddMeshSection(intersectionE, v1, intersectionD);
+                    intersectionD = ComputeIntersectionVertex(indexB, indexA);
+                    intersectionE = ComputeIntersectionVertex(indexC, indexA);
+                    helperB.AddMeshSection(vB, vC, intersectionE);
+                    helperB.AddMeshSection(vB, intersectionE, intersectionD);
+                    helperA.AddMeshSection(intersectionE, vA, intersectionD);
                 }
+                // Bが片側にある
                 else
                 {
-                    intersectionD = ComputeIntersectionVertex(index1, index2);
-                    intersectionE = ComputeIntersectionVertex(index3, index2);
-                    AddMeshSection(v1, intersectionE, v3);
-                    AddMeshSection(intersectionD, intersectionE, v1);
-                    AddMeshSection(v2, intersectionE, intersectionD);
+                    intersectionD = ComputeIntersectionVertex(indexA, indexB);
+                    intersectionE = ComputeIntersectionVertex(indexC, indexB);
+                    helperA.AddMeshSection(vA, intersectionE, vC);
+                    helperA.AddMeshSection(intersectionD, intersectionE, vA);
+                    helperB.AddMeshSection(vB, intersectionE, intersectionD);
                 }
+                // 切断面を構成する頂点をリストに追加
+                pointsAlongPlane.Add(intersectionD);
+                pointsAlongPlane.Add(intersectionE);
             }
+        }
+        // 切断面の構築
+        FillCutSurface(ref MeshConstructionHelper.positiveMesh, ref MeshConstructionHelper.negativeMesh, _planeNormal, pointsAlongPlane);
+    }
+
+    private Vector3 ComputeHalfPoint(List<VertexData> vertices)
+    {
+        if (vertices.Count > 0)
+        {
+            Vector3 center = Vector3.zero;
+
+            foreach(VertexData point in vertices)
+            {
+                center += point.Position;
+            }
+
+            // それを頂点数の合計で割り、中心とする
+            return center / vertices.Count;
+        }
+        else
+        {
+            return Vector3.zero;
         }
     }
 
-    public void AddMeshSection(VertexData vertexA, VertexData vertexB, VertexData vertexC)
+    // 切断面の構築
+    private void FillCutSurface(ref MeshConstructionHelper positive, ref MeshConstructionHelper negative, Vector3 cutNormal, List<VertexData> pointsAlongPlane)
     {
-        int indexA = TryAddVertex(vertexA);
-        int indexB = TryAddVertex(vertexB);
-        int indexC = TryAddVertex(vertexC);
+        // 切断面の中心点を算出
+        VertexData halfway = new VertexData()
+        {
+            Position = ComputeHalfPoint(pointsAlongPlane)
+        };
 
-        AddTriangle(indexA, indexB, indexC);
-    }
+        for (int i = 0; i < pointsAlongPlane.Count; i += 2)
+        {
+            VertexData firstVertex = pointsAlongPlane[i];
+            VertexData secondVertex = pointsAlongPlane[i + 1];
 
+            Vector3 normal = VertexUtility.ComputeNormal(halfway, secondVertex, firstVertex);
+            halfway.Normal = Vector3.forward;
 
-    private void AddTriangle(int indexA, int indexB, int indexC)
-    {
-        _triangles.Add(indexA);
-        _triangles.Add(indexB);
-        _triangles.Add(indexC);
-    }
+            float dot = Vector3.Dot(normal, cutNormal);
 
-    private int TryAddVertex(VertexData vertex)
-    {
-        _vertices.Add(vertex.Position);
-        _uvs.Add(vertex.Uv);
-        _normals.Add(vertex.Normal);
-        return _vertices.Count - 1;
+            if (dot > 0)
+            {
+                positive.AddMeshSection(firstVertex, secondVertex, halfway);
+                negative.AddMeshSection(secondVertex, firstVertex, halfway);
+            }
+            else
+            {
+                negative.AddMeshSection(firstVertex, secondVertex, halfway);
+                positive.AddMeshSection(secondVertex, firstVertex, halfway);
+            }
+        }
     }
 
     #region
     private void OnDrawGizmos()
     {
         Gizmos.color = UnityEngine.Color.red;
-        float VertexWidth = 0.05f;
+        _planePosition = _planeTransform.position;
+        _planeNormal = _planeTransform.up;
+        _plane = new Plane(_planeNormal, _planePosition);
 
-        var objectTransform = _subject.transform;
-        {
-            foreach (Vector3 vertex in _vertices)
-            {
-                Gizmos.DrawSphere(objectTransform.TransformPoint(vertex), VertexWidth);
-            }
-        }
+        // Planeの法線ベクトルを示す線を描画
+        Gizmos.DrawLine(_planeTransform.position, _planeTransform.position + _planeTransform.up * 5); // 法線方向に線を描画
 
-        for (int i = 0; i < _triangles.Count; i += 3)
-        {
-            Gizmos.color = UnityEngine.Color.blue;
+        // Planeの位置を示す小さな球を描画
+        Gizmos.color = UnityEngine.Color.green;
+        Gizmos.DrawSphere(_planeTransform.position, 0.1f); // Planeの位置に球を描画
 
-            Vector3 vertex1 = objectTransform.TransformPoint(_vertices[_triangles[i]]);
-            Vector3 vertex2 = objectTransform.TransformPoint(_vertices[_triangles[i + 1]]);
-            Vector3 vertex3 = objectTransform.TransformPoint(_vertices[_triangles[i + 2]]);
-
-            Gizmos.DrawLine(vertex1, vertex2);
-            Gizmos.DrawLine(vertex2, vertex3);
-            Gizmos.DrawLine(vertex3, vertex1);
-
-        }
-        if (_planeTransform != null)
-        {
-            // Planeの法線ベクトルを示す線を描画
-            Gizmos.color = UnityEngine.Color.red;
-            Gizmos.DrawLine(_planeTransform.position, _planeTransform.position + _planeTransform.up * 5); // 法線方向に線を描画
-
-            // Planeの位置を示す小さな球を描画
-            Gizmos.color = UnityEngine.Color.green;
-            Gizmos.DrawSphere(_planeTransform.position, 0.1f); // Planeの位置に球を描画
-        }
-        Gizmos.matrix = Matrix4x4.TRS(_planeTransform.position, _planeTransform.rotation, _planeTransform.localScale);
-        Gizmos.DrawWireCube(Vector3.zero, Vector3.one);
+        Gizmos.matrix = Matrix4x4.TRS(_planePosition, Quaternion.LookRotation(_planeNormal), Vector3.one);
+        Gizmos.color = new Color(0, 1, 0, 0.4f);
+        Gizmos.DrawCube(Vector3.zero, new Vector3(2, 2, 0f)); // Matrixに基づく位置に描画
+        Gizmos.color = new Color(0, 1, 0, 1f);
+        Gizmos.DrawWireCube(Vector3.zero, new Vector3(2, 2, 0f)); // Matrixに基づく位置に描画
+        Gizmos.matrix = transform.localToWorldMatrix;
     }
     #endregion
+}
+
+public static class VertexUtility
+{
+    public static Vector3 ComputeNormal(VertexData vertexA, VertexData vertexB, VertexData vertexC)
+    {
+        Vector3 sideL = vertexB.Position - vertexA.Position;
+        Vector3 sideR = vertexC.Position - vertexA.Position;
+
+        Vector3 normal = Vector3.Cross(sideL, sideR);
+
+        return normal.normalized;
+    }
+
+    public static Vector3 GetHalfwayPoint(List<VertexData> pointsAlongPlane)
+    {
+        if (pointsAlongPlane.Count > 0)
+        {
+            Vector3 firstPoint = pointsAlongPlane[0].Position;
+            Vector3 furthestPoint = Vector3.zero;
+            float distance = 0f;
+
+            for (int index = 0; index < pointsAlongPlane.Count; index++)
+            {
+                Vector3 point = pointsAlongPlane[index].Position;
+                float currentDistance = 0f;
+                currentDistance = Vector3.Distance(firstPoint, point);
+
+                if (currentDistance > distance)
+                {
+                    distance = currentDistance;
+                    furthestPoint = point;
+                }
+            }
+
+            return Vector3.Lerp(firstPoint, furthestPoint, 0.5f);
+        }
+        else
+        {
+            return Vector3.zero;
+        }
+    }
+
+}
+
+public class MeshSlicer_InfinitePlane
+{
+    [SerializeField] private Vector3 _planePosition;
+    [SerializeField] private Vector3 _planeNormal;
+}
+
+public class MeshSlicer_Plane
+{
+    [SerializeField] private Vector3 _planePosition;
+    [SerializeField] private Vector3 _planeNormal;
+    [SerializeField] private Vector2 _planeSize;
+
+
+}
+
+public class MeshSlicer_Mesh
+{
+
 }
