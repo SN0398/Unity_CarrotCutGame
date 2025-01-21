@@ -36,12 +36,12 @@ public class DrawMeshGizmo : MonoBehaviour
 
         }
 
-        //Gizmos.color = new Color(0, 0, 1, 1f);
-        //for (int i = 0; i < meshFilter.sharedMesh.normals.Length; i++)
-        //{
-        //    Vector3 normal = objectTransform.TransformDirection(meshFilter.sharedMesh.normals[i]);
-        //    Vector3 vertex = objectTransform.TransformPoint(meshFilter.sharedMesh.vertices[i]);
-        //    Gizmos.DrawLine(vertex, vertex + normal);
-        //}
+        Gizmos.color = new Color(0, 0, 1, 1f);
+        for (int i = 0; i < meshFilter.sharedMesh.normals.Length; i++)
+        {
+            Vector3 normal = objectTransform.TransformDirection(meshFilter.sharedMesh.normals[i]);
+            Vector3 vertex = objectTransform.TransformPoint(meshFilter.sharedMesh.vertices[i]);
+            Gizmos.DrawLine(vertex, vertex + normal);
+        }
     }
 }
