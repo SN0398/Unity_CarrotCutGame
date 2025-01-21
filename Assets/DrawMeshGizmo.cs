@@ -10,7 +10,7 @@ public class DrawMeshGizmo : MonoBehaviour
         var vertices = new List<Vector3>(meshFilter.sharedMesh.vertices);
         var triangles = new List<int>(meshFilter.sharedMesh.triangles);
 
-        Gizmos.color = UnityEngine.Color.yellow;
+		Gizmos.color = UnityEngine.Color.yellow;
         float VertexWidth = 0.05f;
 
         // ’¸“_‚Ì•`‰æ

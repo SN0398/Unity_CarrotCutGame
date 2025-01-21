@@ -81,7 +81,7 @@ public class MeshConstructionHelper
         // 既に存在する頂点ならインデックスをそのまま返す
         if (_vertexDictionary.TryGetValue(vertex, out int index))
         {
-            return index;
+			return index;
         }
         // 頂点を追加してインデックスを返す
         _vertices.Add(vertex.Position);

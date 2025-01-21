@@ -284,7 +284,7 @@ Transform:
   m_GameObject: {fileID: 422096211}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: -0.3774368, w: 0.92603534}
-  m_LocalPosition: {x: 0, y: -0.15, z: 0}
+  m_LocalPosition: {x: 0, y: 0.153, z: 0}
   m_LocalScale: {x: 2, y: 0, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -322,7 +322,7 @@ MonoBehaviour:
   _subject: {fileID: 1903688031}
   cutter: {fileID: 422096211}
   _planeTransform: {fileID: 422096212}
-  _planePosition: {x: 0, y: -0.15, z: 0}
+  _planePosition: {x: 0, y: 0.153, z: 0}
   _planeNormal: {x: 0.69903964, y: 0.71508294, z: 0}
 --- !u!4 &482134042
 Transform:

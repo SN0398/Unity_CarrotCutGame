@@ -213,7 +213,8 @@ public class MeshCut : MonoBehaviour
             }
         }
         // 切断面の構築
-        FillCutSurface(ref MeshConstructionHelper.positiveMesh, ref MeshConstructionHelper.negativeMesh, _planeNormal, pointsAlongPlane);
+        FillCutSurface(ref MeshConstructionHelper.positiveMesh, _planeNormal, pointsAlongPlane);
+        FillCutSurface(ref MeshConstructionHelper.negativeMesh, -_planeNormal, pointsAlongPlane);
     }
 
     public Vector3 ComputeHalfPoint(List<VertexData> vertices)
@@ -248,138 +249,42 @@ public class MeshCut : MonoBehaviour
 
 
     // 切断面の構築
-    private void FillCutSurface(ref MeshConstructionHelper positive, ref MeshConstructionHelper negative, Vector3 cutNormal, List<VertexData> pointsAlongPlane)
+    private void FillCutSurface(ref MeshConstructionHelper mesh, Vector3 cutNormal, List<VertexData> pointsAlongPlane)
     {
-        //// 切断面の中心点を算出
-        //VertexData halfPoint = new VertexData()
-        //{
-        //    Position = ComputeHalfPoint(pointsAlongPlane),
-        //    Uv = new Vector3(0.5f, 0.5f)
-        //};
-
-        //// 算出した中心点＋２頂点でポリゴンを形成
-        //for (int i = 0; i < pointsAlongPlane.Count; i += 2)
-        //{
-        //    VertexData v1 = pointsAlongPlane[i];
-        //    VertexData v2 = pointsAlongPlane[(i + 1) % pointsAlongPlane.Count];
-
-        //    Vector3 normal = _subject.transform.TransformDirection(ComputeNormal(halfPoint, v2, v1));
-        //    halfPoint.Normal = normal;
-        //    v1.Normal = normal;
-        //    v2.Normal = normal;
-
-        //    float dot = Vector3.Dot(normal, cutNormal);
-
-        //    if (dot > 0)
-        //    {
-        //        positive.AddMeshSection(v1, v2, halfPoint);
-        //        negative.AddMeshSection(v2, v1, halfPoint);
-        //    }
-        //    else
-        //    {
-        //        positive.AddMeshSection(v2, v1, halfPoint);
-        //        negative.AddMeshSection(v1, v2, halfPoint);
-        //    }
-        //}
-        // center of the cap
-        // カット平面の中心点を計算する
-        Vector3 center = Vector3.zero;
-
-        // 引数で渡された頂点位置をすべて合計する
-        foreach (Vector3 point in pointsAlongPlane)
+        // 切断面の中心点を算出
+        VertexData halfPoint = new VertexData()
         {
-            center += point;
-        }
+            Position = ComputeHalfPoint(pointsAlongPlane),
+            Uv = new Vector3(0.5f, 0.5f)
+        };
 
-        // それを頂点数の合計で割り、中心とする
-        center = center / pointsAlongPlane.Count;
-
-        // you need an axis based on the cap
-        // カット平面をベースにしたupward
-        Vector3 upward = Vector3.zero;
-
-        // 90 degree turn
-        // カット平面の法線を利用して、「上」方向を求める
-        // 具体的には、平面の左側を上として利用する
-        upward.x = cutNormal.y;
-        upward.y = -cutNormal.x;
-        upward.z = cutNormal.z;
-
-        // 法線と「上方向」から、横軸を算出
-        Vector3 left = Vector3.Cross(cutNormal, upward);
-
-        Vector3 displacement = Vector3.zero;
-        Vector3 newUV1 = Vector3.zero;
-        Vector3 newUV2 = Vector3.zero;
-
-        // 引数で与えられた頂点分ループを回す
-        for (int i = 0; i < pointsAlongPlane.Count; i++)
+        // 算出した中心点＋２頂点でポリゴンを形成
+        for (int i = 0; i < pointsAlongPlane.Count; i += 2)
         {
-            // 計算で求めた中心点から、各頂点への方向ベクトル
-            displacement = pointsAlongPlane[i].Position - center;
+            VertexData v1 = pointsAlongPlane[i];
+            VertexData v2 = pointsAlongPlane[(i + 1) % pointsAlongPlane.Count];
+            VertexData v3 = halfPoint;
 
-            // 新規生成するポリゴンのUV座標を求める。
-            // displacementが中心からのベクトルのため、UV的な中心である0.5をベースに、内積を使ってUVの最終的な位置を得る
-            newUV1 = Vector3.zero;
-            newUV1.x = 0.5f + Vector3.Dot(displacement, left);
-            newUV1.y = 0.5f + Vector3.Dot(displacement, upward);
-            newUV1.z = 0.5f + Vector3.Dot(displacement, cutNormal);
+            Vector3 normal = _subject.transform.InverseTransformDirection(ComputeNormal(halfPoint, v2, v1));
 
-            // 次の頂点。ただし、最後の頂点の次は最初の頂点を利用するため、若干トリッキーな指定方法をしている（% vertices.Count）
-            displacement = pointsAlongPlane[(i + 1) % pointsAlongPlane.Count].Position - center;
+            float dot = Vector3.Dot(normal, cutNormal);
 
-            newUV2 = Vector3.zero;
-            newUV2.x = 0.5f + Vector3.Dot(displacement, left);
-            newUV2.y = 0.5f + Vector3.Dot(displacement, upward);
-            newUV2.z = 0.5f + Vector3.Dot(displacement, cutNormal);
-
-            // uvs.Add(new Vector2(relativePosition.x, relativePosition.y));
-            // normals.Add(cutNormal);
-
-            // 左側のポリゴンとして、求めたUVを利用してトライアングルを追加
-            positive.AddMeshSection(
-                new Vector3[]{
-                        pointsAlongPlane[i],
-                        pointsAlongPlane[(i + 1) % pointsAlongPlane.Count],
-                        center
-                },
-            new Vector3[]{
-                -cutNormal,
-                        -cutNormal,
-                        -cutNormal
-                },
-                new Vector2[]{
-                        newUV1,
-                        newUV2,
-                        new Vector2(0.5f, 0.5f)
-                },
-                -cutNormal,
-                left_side.subIndices.Count - 1 // カット面。最後のサブメッシュとしてトライアングルを追加
-            );
-
-            // 右側のトライアングル。基本は左側と同じだが、法線だけ逆向き。
-            negative.AddMeshSection(
-                new Vector3[]{
-                        pointsAlongPlane[i],
-                        pointsAlongPlane[(i + 1) % pointsAlongPlane.Count],
-                        center
-                },
-                new Vector3[]{
-                        cutNormal,
-                        cutNormal,
-                        cutNormal
-                },
-                new Vector2[]{
-                        newUV1,
-                        newUV2,
-                        new Vector2(0.5f, 0.5f)
-                },
-                cutNormal,
-                right_side.subIndices.Count - 1 // カット面。最後のサブメッシュとしてトライアングルを追加
-            );
+            if (dot > 0)
+            {
+				v1.Normal = -normal;
+				v2.Normal = -normal;
+				v3.Normal = -normal;
+				mesh.AddMeshSection(v1, v2, halfPoint);
+            }
+            else
+            {
+				v1.Normal = normal;
+				v2.Normal = normal;
+				v3.Normal = normal;
+				mesh.AddMeshSection(v2, v1, halfPoint);
+            }
         }
     }
-}
 
     #region
     private void OnDrawGizmos()
@@ -404,24 +309,4 @@ public class MeshCut : MonoBehaviour
         Gizmos.matrix = transform.localToWorldMatrix;
     }
     #endregion
-}
-
-public class MeshSlicer_InfinitePlane
-{
-    [SerializeField] private Vector3 _planePosition;
-    [SerializeField] private Vector3 _planeNormal;
-}
-
-public class MeshSlicer_Plane
-{
-    [SerializeField] private Vector3 _planePosition;
-    [SerializeField] private Vector3 _planeNormal;
-    [SerializeField] private Vector2 _planeSize;
-
-
-}
-
-public class MeshSlicer_Mesh
-{
-
 }
