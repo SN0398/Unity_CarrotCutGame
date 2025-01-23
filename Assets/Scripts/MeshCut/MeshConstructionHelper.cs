@@ -21,18 +21,6 @@ public class MeshConstructionHelper
         _vertexDictionary = new Dictionary<VertexData, int>();
     }
 
-    public static void ClearMesh()
-    {
-        positiveMesh._vertices.Clear();
-        positiveMesh._normals.Clear();
-        positiveMesh._uvs.Clear();
-        positiveMesh._triangles.Clear();
-        negativeMesh._vertices.Clear();
-        negativeMesh._normals.Clear();
-        negativeMesh._uvs.Clear();
-        negativeMesh._triangles.Clear();
-    }
-
     public Mesh ConstructMesh()
     {
         Mesh mesh = new Mesh();
@@ -91,7 +79,4 @@ public class MeshConstructionHelper
         _vertexDictionary.Add(vertex, newIndex);
         return newIndex;
     }
-
-    public static MeshConstructionHelper positiveMesh = new MeshConstructionHelper();
-    public static MeshConstructionHelper negativeMesh = new MeshConstructionHelper();
 }
