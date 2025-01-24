@@ -5,16 +5,26 @@ using Unity.IO.LowLevel.Unsafe;
 using UnityEngine;
 using static UnityEngine.GraphicsBuffer;
 
+
+
 public class KnifeController : MonoBehaviour
 {
     [SerializeField] private GameObject _knifeObject;
     [SerializeField] private float _recordInterval = 0.2f; // 記録の間隔（秒）
     [SerializeField] private float _rotationSpeed = 10f; // 回転の速度
+
     private Quaternion _defaultRotation = Quaternion.identity;
     private List<Vector3> _trailPositions = new List<Vector3>();
-    public List<GameObject> CutTarget = new List<GameObject>();
     private float _timeSinceLastRecord = 0f;
     private int _maxTrailRecordCount = 20;
+
+    public GameObject KnifeObject
+    {
+        get => _knifeObject;
+        private set => _knifeObject = value;
+    }
+
+    public ICutManager cutManager;
 
     private void Start()
     {
@@ -50,6 +60,7 @@ public class KnifeController : MonoBehaviour
         var p1 = _trailPositions[_trailPositions.Count - 2];
         var p2 = _trailPositions[_trailPositions.Count - 1];
 
+        // 現在の位置と前の位置との距離が近すぎたら
         if (Vector3.Distance(p1, p2) < 0.05f) { return; }
 
         // 移動方向を計算
@@ -82,7 +93,7 @@ public class KnifeController : MonoBehaviour
         if (_timeSinceLastRecord >= _recordInterval)
         {
             _trailPositions.Add(_knifeObject.transform.position);
-            // リストが100を超えた場合、先頭の要素を削除
+            // リストが要素が増えすぎないようにする処理
             if (_trailPositions.Count > _maxTrailRecordCount)
             {
                 _trailPositions.RemoveAt(0); // 古い順に削除
@@ -95,42 +106,11 @@ public class KnifeController : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         // 接触したオブジェクトがターゲットリストに含まれているかチェック
-        if (CutTarget.Contains(other.gameObject))
+        if (cutManager.ContainTarget(other.gameObject))
         {
-            // 任意の処理を実行
-            HandleCutTarget(other.gameObject);
+            // メッシュカットを行う
+            cutManager.CutObject(other.gameObject);
         }
-    }
-
-    private void HandleCutTarget(GameObject target)
-    {
-        // ここに任意の処理を記述
-        Debug.Log($"Touched: {target.name}");
-
-        CutTarget.Remove(target);
-
-        var planePosition = _knifeObject.transform.position;
-        var planeNormal = _knifeObject.transform.up;
-        var meshes = MeshCut.Cut(target.gameObject, planePosition, planeNormal);
-
-        var positiveMesh = meshes.positive;
-        var negativeMesh = meshes.negative;
-        var positiveObject = Instantiate(target);
-        var negativeObject = Instantiate(target);
-        var objectName = target.name;
-        positiveObject.name = objectName + "_Positive";
-        negativeObject.name = objectName + "_Negative";
-
-        positiveMesh.InverseTransformPoints(target);
-        negativeMesh.InverseTransformPoints(target);
-
-        positiveObject.GetComponent<MeshFilter>().mesh = positiveMesh.ConstructMesh();
-        negativeObject.GetComponent<MeshFilter>().mesh = negativeMesh.ConstructMesh();
-
-        positiveObject.GetComponent<MeshCollider>().sharedMesh = positiveObject.GetComponent<MeshFilter>().mesh;
-        negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
-
-        Destroy(target);
     }
 
     private void OnDrawGizmos()

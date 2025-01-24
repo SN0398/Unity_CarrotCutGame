@@ -165,7 +165,6 @@ MonoBehaviour:
   _knifeObject: {fileID: 24770784}
   _recordInterval: 0.2
   _rotationSpeed: 10
-  CutTarget: []
 --- !u!1 &238042247
 GameObject:
   m_ObjectHideFlags: 0
@@ -500,6 +499,52 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 24770789}
   m_SourcePrefab: {fileID: 100100000, guid: 4a9417f2a5da2ce4cbd2c96609a58dfb, type: 3}
+--- !u!1 &1551988664
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1551988666}
+  - component: {fileID: 1551988665}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1551988665
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1551988664}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0094ced6f34a4c6439ce78f58431b9f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _knifeController: {fileID: 24770789}
+  _throwManager: {fileID: 1829091580}
+--- !u!4 &1551988666
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1551988664}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.3799179, y: -8.368641, z: 8.543945}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1829091579
 GameObject:
   m_ObjectHideFlags: 0
@@ -533,13 +578,17 @@ MonoBehaviour:
     type: 3}
   _targetOrigin: {x: -2.0439258, y: -0.7600119, z: -4.770706}
   _targetOffset: {x: 0, y: 0, z: 0}
-  _spawnTime: 0
   _spanwnPoint:
   - {x: 0, y: -1.7734846, z: 5.99}
   - {x: 3.82, y: -1.773485, z: 5.99}
   - {x: -4.08, y: -1.773485, z: 5.99}
   - {x: -7.46, y: -1.773485, z: 5.99}
-  _knifeController: {fileID: 24770789}
+  - {x: -7.46, y: -0.1, z: 5.99}
+  - {x: -4.01, y: -0.1, z: 5.99}
+  - {x: -0.19, y: -0.1, z: 5.99}
+  - {x: 3.43, y: -0.1, z: 5.99}
+  _throwDelay: 0.5
+  _throwNum: 20
 --- !u!4 &1829091581
 Transform:
   m_ObjectHideFlags: 0
@@ -682,3 +731,4 @@ SceneRoots:
   - {fileID: 1042024529}
   - {fileID: 1470868801}
   - {fileID: 1829091581}
+  - {fileID: 1551988666}
