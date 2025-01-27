@@ -3,6 +3,13 @@ using UnityEngine;
 using static MeshCut;
 using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
+public struct VertexData
+{
+    public Vector3 Position;
+    public Vector3 Normal;
+    public Vector2 Uv;
+}
+
 public class MeshConstructionHelper
 {
     private List<Vector3> _vertices;
@@ -78,5 +85,33 @@ public class MeshConstructionHelper
         int newIndex = _vertices.Count - 1;
         _vertexDictionary.Add(vertex, newIndex);
         return newIndex;
+    }
+
+    /// <summary>
+    /// ポリゴンの分割関数　
+    /// メッシュの繋がっていない部分を別々のメッシュに構成して返す
+    /// </summary>
+    /// <param name="mesh">対象メッシュ</param>
+    /// <returns>分割されたメッシュリスト</returns>
+    public static List<MeshConstructionHelper> MeshDivision(MeshConstructionHelper mesh)
+    {
+        List<MeshConstructionHelper> meshGroup = new List<MeshConstructionHelper>();
+
+        // ポリゴンは三つの頂点で構成されるので３づつ増分して走査
+        for (int i = 0; i < mesh._triangles.Count; i += 3)
+        {
+            // 三角形が保有する頂点のインデックスを取得
+            int indexA = mesh._triangles[i];
+            int indexB = mesh._triangles[i + 1];
+            int indexC = mesh._triangles[i + 2];
+
+            var v1 = mesh._vertices[indexA];
+            var v2 = mesh._vertices[indexB];
+            var v3 = mesh._vertices[indexC];
+
+
+        }
+
+        return meshGroup;
     }
 }

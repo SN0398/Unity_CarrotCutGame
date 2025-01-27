@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using static MeshCut;
 
@@ -12,13 +13,6 @@ using static MeshCut;
 
 public class MeshCut : MonoBehaviour
 {
-    public struct VertexData
-    {
-        public Vector3 Position;
-        public Vector3 Normal;
-        public Vector2 Uv;
-    }
-
     // 板
     private static Vector3  planePosition;
     private static Vector3  planeNormal;
@@ -100,32 +94,6 @@ public class MeshCut : MonoBehaviour
     public static bool ComputeSide(Vector3 p)
     {
         return plane.GetSide(p);
-    }
-
-    public void Start()
-    {
-
-        //MeshConstructionHelper.ClearMesh();
-        //GetMeshInfo(_subject);
-        //Cut(_subject);
-
-        //// 元のオブジェクトを複製
-        ////GameObject positiveObject = Instantiate(_subject);
-        //GameObject negativeObject = Instantiate(_subject);
-
-        //// 複製したオブジェクトに新しいメッシュを適用
-        //var objectName = _subject.name;
-        //_subject.name = objectName + "_Positive";
-        //negativeObject.name = objectName + "_Negative";
-
-        //MeshConstructionHelper.positiveMesh.InverseTransformPoints(_subject);
-        //MeshConstructionHelper.negativeMesh.InverseTransformPoints(_subject);
-
-        //_subject.GetComponent<MeshFilter>().mesh = MeshConstructionHelper.positiveMesh.ConstructMesh();
-        //negativeObject.GetComponent<MeshFilter>().mesh = MeshConstructionHelper.negativeMesh.ConstructMesh();
-
-        //_subject.GetComponent<MeshCollider>().sharedMesh = _subject.GetComponent<MeshFilter>().mesh;
-        //negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
     }
         
     public static (MeshConstructionHelper positive, MeshConstructionHelper negative) Cut

@@ -118,6 +118,16 @@ public class KnifeController : MonoBehaviour
         for (int i = 0; i < _trailPositions.Count - 1; i++) 
         {
             Gizmos.DrawLine(_trailPositions[i], _trailPositions[i + 1]);
+            if (i > 0 && i < _trailPositions.Count - 1)
+            {
+                var v1 = _trailPositions[i];
+                var v2 = _trailPositions[i + 1];
+                var center = (v1 + v2) / 2;
+                Vector3 direction = v2 - v1;
+                Vector3 normal = Vector3.Cross(direction, Vector3.forward).normalized;
+                Gizmos.DrawLine(center, center + (normal * 1));
+
+            }
         }
         var planePosition = _knifeObject.transform.position;
         var planeNormal = _knifeObject.transform.up;

@@ -1,6 +1,10 @@
+using Cysharp.Threading.Tasks;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using System.Threading;
+using UniRx.InternalUtil;
+using System;
 
 public class ThrowObjectManager : MonoBehaviour
 {
@@ -8,30 +12,21 @@ public class ThrowObjectManager : MonoBehaviour
     [SerializeField] private Vector3 _targetOrigin;
     [SerializeField] private Vector3 _targetOffset;
     [SerializeField] private List<Vector3> _spanwnPoint;
-    [SerializeField] private float _throwDelay;
-    [SerializeField] private float _throwNum;
 
     public ICutManager cutManager;
     private int _prevIndex;
 
-    // Start is called before the first frame update
-    void Start()
+    public async UniTask StartThrowAsync(int throwNum, float throwDelay, CancellationTokenSource cts)
     {
-        // コルーチンの起動
-        StartCoroutine(DelayCoroutine());
-    }
-
-    // コルーチン本体
-    private IEnumerator DelayCoroutine()
-    {
-        while(--_throwNum >= 0)
+        var token = cts.Token;
+        for(int i = 0; i < throwNum;i++)
         {
             // ランダムな位置から人参を投げる
+            var index = UnityEngine.Random.Range(0, _spanwnPoint.Count - 1);
             // 前回と同じ位置にはスポーンさせない
-            var index = Random.Range(0, _spanwnPoint.Count - 1);
-            if(index == _prevIndex) 
+            if (index == _prevIndex)
             {
-                index = (index + 1) % _spanwnPoint.Count; 
+                index = (index + 1) % _spanwnPoint.Count;
             }
             _prevIndex = index;
             Vector3 spawnPoint = _spanwnPoint[index];
@@ -39,29 +34,15 @@ public class ThrowObjectManager : MonoBehaviour
             // オブジェクト複製して投げる
             GameObject subject = Instantiate(_throwObjectPrefab, spawnPoint, Quaternion.identity);
             ThrowScript.ThrowObject(subject, _targetOrigin, _targetOffset);
+            // 切断対象に追加
             cutManager.AddCutTarget(subject);
-            // 一定時間待つ
-            yield return new WaitForSeconds(_throwDelay);
-        }
-        Debug.Log("All Sliced!");
-        CallThrowingFinished();
-    }
 
-    private void FixedUpdate()
-    {
-        // 切り損ねたニンジンがある
-        if(IsExistMissedObject())
-        {
-            UnityEditor.EditorApplication.isPlaying = false;
+            // 指定秒待って繰り返し
+            await UniTask.Delay(TimeSpan.FromSeconds(throwDelay), cancellationToken: token);
         }
     }
 
-    private void CallThrowingFinished()
-    {
-        StartCoroutine(DelayCoroutine());
-    }
-
-    private bool IsMissed(Vector3 position)
+    public bool IsMissed(Vector3 position)
     {
         if (position.z <= Camera.main.transform.position.z) 
         {
@@ -74,7 +55,7 @@ public class ThrowObjectManager : MonoBehaviour
     /// 切損ねたオブジェクトが存在するか
     /// </summary>
     /// <returns></returns>
-    private bool IsExistMissedObject()
+    public bool IsExistMissedObject()
     {
         foreach(var obj in cutManager.CutTarget)
         {
