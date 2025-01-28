@@ -61,7 +61,6 @@ public class ThrowObjectManager : MonoBehaviour
         {
             if(IsMissed(obj.transform.position))
             {
-                Debug.Log("Missed : " + obj.name);
                 return true;
             }
         }

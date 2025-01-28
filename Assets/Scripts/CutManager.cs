@@ -8,7 +8,6 @@ public class CutManager : MonoBehaviour
 {
     public GameObject initObject;
     private List<GameObject> _cutTarget = new List<GameObject>();
-    //[SerializeField] private Rect _cutArea;
 
     private struct InteractData
     {
@@ -27,21 +26,20 @@ public class CutManager : MonoBehaviour
 
     void Update()
     {
-        //Debug.DrawRay(ray.origin, ray.direction * 10f, Color.green, 5, false);
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
+        bool isHit = Physics.Raycast(ray, out hit);
+        List<GameObject> removeTargets = new List<GameObject>();
 
         foreach (var target in _cutTarget)
         {
-            // オブジェクトのスクリーン座標を取得
-            Vector3 screenPos = Camera.main.WorldToScreenPoint(target.transform.position);
-
-            // 四角形範囲内にいる場合、レイキャストで判定
-            if (Physics.Raycast(ray, out hit))
+            // 接触の検知
+            if (isHit)
             {
+                // レイキャストに当たったのが対象オブジェクト
                 if (hit.collider.gameObject == target)
                 {
-                    // 対象オブジェクトが接触状態であれば位置を更新
+                    // 対象オブジェクトが接触中であれば位置を更新
                     if (_interactObjects.ContainsKey(target))
                     {
                         var interactData = _interactObjects[target];
@@ -53,6 +51,7 @@ public class CutManager : MonoBehaviour
                     }
                     else
                     {
+                        Debug.Log("接触開始");
                         // 新規接触開始
                         _interactObjects[target] = new InteractData
                         {
@@ -62,47 +61,62 @@ public class CutManager : MonoBehaviour
                         };
                     }
                 }
-            }
-            else
-            {
-                // 範囲外であれば接触終了
-                if (_interactObjects.ContainsKey(target))
+                // 接触でないが、接触中オブジェクトに存在する = 接触が終了
+                else if (_interactObjects.ContainsKey(target))
                 {
                     if (_interactObjects[target].inInteract)
                     {
-                        var temp = _interactObjects[target];
-                        _cutTarget.Remove(target);
-                        _interactObjects.Remove(target);
-
-                        var planePosition = (temp.firstPosition + temp.lastPosition) / 2;
-
-                        Vector3 direction = temp.lastPosition - temp.firstPosition;
-                        var planeNormal = Vector3.Cross(direction, Vector3.forward).normalized;
-
-                        var meshes = MeshCut.Cut(target, planePosition, planeNormal);
-
-                        var positiveMesh = meshes.positive;
-                        var negativeMesh = meshes.negative;
-                        var positiveObject = Instantiate(target);
-                        var negativeObject = Instantiate(target);
-
-                        positiveMesh.InverseTransformPoints(target);
-                        negativeMesh.InverseTransformPoints(target);
-
-                        positiveObject.GetComponent<MeshFilter>().mesh = positiveMesh.ConstructMesh();
-                        negativeObject.GetComponent<MeshFilter>().mesh = negativeMesh.ConstructMesh();
-
-                        positiveObject.GetComponent<MeshCollider>().sharedMesh = positiveObject.GetComponent<MeshFilter>().mesh;
-                        negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
-
-                        _cutTarget.Add(positiveObject);
-                        _cutTarget.Add(negativeObject);
-
-                        Destroy(target);
+                        Debug.Log("接触終了");
+                        removeTargets.Add(target);
                     }
                 }
             }
         }
+        foreach(var target in removeTargets)
+        {
+            _cutTarget.Remove(target);
+            var temp = _interactObjects[target];
+            _interactObjects.Remove(target);
+
+            var planePosition = (temp.firstPosition + temp.lastPosition) / 2;
+
+            Vector3 direction = temp.lastPosition - temp.firstPosition;
+            var planeNormal = Vector3.Cross(direction, Vector3.forward).normalized;
+
+            var meshes = MeshCut.Cut(target, planePosition, planeNormal);
+
+            var positiveMesh = meshes.positive;
+            var negativeMesh = meshes.negative;
+            var positiveObject = Instantiate(target);
+            var negativeObject = Instantiate(target);
+
+            positiveMesh.InverseTransformPoints(target);
+            negativeMesh.InverseTransformPoints(target);
+
+            positiveObject.GetComponent<MeshFilter>().mesh = positiveMesh.ConstructMesh();
+            negativeObject.GetComponent<MeshFilter>().mesh = negativeMesh.ConstructMesh();
+
+            positiveObject.GetComponent<MeshCollider>().sharedMesh = positiveObject.GetComponent<MeshFilter>().mesh;
+            negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
+
+            float dotProduct = Vector3.Dot(planeNormal, Vector3.up);
+            if (dotProduct > 0)
+            {
+                positiveObject.GetComponent<Rigidbody>().AddForce(Vector3.up * 5);
+                negativeObject.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5);
+            }
+            else
+            {
+                negativeObject.GetComponent<Rigidbody>().AddForce(Vector3.up * 5);
+                positiveObject.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5);
+            }
+
+            _cutTarget.Add(positiveObject);
+            _cutTarget.Add(negativeObject);
+
+            Destroy(target);
+        }
+        removeTargets.Clear();
     }
 
     private void OnDrawGizmos()

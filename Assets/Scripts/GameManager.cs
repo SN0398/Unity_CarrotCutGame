@@ -4,9 +4,7 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System;
 using System.Threading;
-using Cysharp.Threading.Tasks.CompilerServices;
-using Unity.VisualScripting.Antlr3.Runtime;
-using static UnityEngine.GraphicsBuffer;
+using UnityEngine.SceneManagement;
 
 public interface ICutManager
 {
@@ -49,7 +47,6 @@ public class GameManager : MonoBehaviour, ICutManager
         public int ThrowNum;
     }
 
-
     private void Awake()
     {
         _cutTarget.Clear();
@@ -66,6 +63,9 @@ public class GameManager : MonoBehaviour, ICutManager
 
         _knifeController.cutManager = this;
         _throwManager.cutManager = this;
+
+        Scoreboard.gameObjects.Clear();
+        Scoreboard.maxPhase = 0;
     }
 
     private void Start()
@@ -77,38 +77,24 @@ public class GameManager : MonoBehaviour, ICutManager
     {
         CancellationTokenSource cts = new CancellationTokenSource();
         int PhaseNum = _phaseData.Count;
-        bool allSuccess = false;
+
         for (int i = 0; i < PhaseNum; i++)
         {
-            Debug.Log("wait 3 seconds");
             await UniTask.Delay(TimeSpan.FromSeconds(3), cancellationToken: cts.Token);
 
             int throwNum = _phaseData[i].ThrowNum;
             float throwDelay = _phaseData[i].ThrowDelay;
 
             await _throwManager.StartThrowAsync(throwNum, throwDelay, cts);
-
-            if (!_throwManager.IsExistMissedObject())
+            await UniTask.Delay(TimeSpan.FromSeconds(2), cancellationToken: cts.Token);
+            
+            if (_throwManager.IsExistMissedObject())
             {
-                Debug.Log("Phase Clear!");
-                allSuccess = true;
-            }
-            else
-            {
-                Debug.Log("Phase Failed!");
-                allSuccess = false;
                 break;
             }
+            Scoreboard.maxPhase++;
         }
-        if(allSuccess)
-        {
-            Debug.Log("All Phase Clear!");
-        }
-        else
-        {
-            Debug.Log("Game failed...");
-            UnityEditor.EditorApplication.isPlaying = false;
-        }
+        SceneManager.LoadScene("Result", LoadSceneMode.Single);
     }
 
     public List<GameObject> CutTarget => new List<GameObject>(_cutTarget);
@@ -140,6 +126,9 @@ public class GameManager : MonoBehaviour, ICutManager
 
         _slicedObject.Add(positiveObject);
         _slicedObject.Add(negativeObject);
+
+        Scoreboard.gameObjects.Add(positiveObject);
+        Scoreboard.gameObjects.Add(negativeObject);
 
         Destroy(subject);
     }

@@ -115,36 +115,36 @@ public class KnifeController : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        for (int i = 0; i < _trailPositions.Count - 1; i++) 
-        {
-            Gizmos.DrawLine(_trailPositions[i], _trailPositions[i + 1]);
-            if (i > 0 && i < _trailPositions.Count - 1)
-            {
-                var v1 = _trailPositions[i];
-                var v2 = _trailPositions[i + 1];
-                var center = (v1 + v2) / 2;
-                Vector3 direction = v2 - v1;
-                Vector3 normal = Vector3.Cross(direction, Vector3.forward).normalized;
-                Gizmos.DrawLine(center, center + (normal * 1));
+        //for (int i = 0; i < _trailPositions.Count - 1; i++) 
+        //{
+        //    Gizmos.DrawLine(_trailPositions[i], _trailPositions[i + 1]);
+        //    if (i > 0 && i < _trailPositions.Count - 1)
+        //    {
+        //        var v1 = _trailPositions[i];
+        //        var v2 = _trailPositions[i + 1];
+        //        var center = (v1 + v2) / 2;
+        //        Vector3 direction = v2 - v1;
+        //        Vector3 normal = Vector3.Cross(direction, Vector3.forward).normalized;
+        //        Gizmos.DrawLine(center, center + (normal * 1));
 
-            }
-        }
-        var planePosition = _knifeObject.transform.position;
-        var planeNormal = _knifeObject.transform.up;
-        var plane = new Plane(planeNormal, planePosition);
+        //    }
+        //}
+        //var planePosition = _knifeObject.transform.position;
+        //var planeNormal = _knifeObject.transform.up;
+        //var plane = new Plane(planeNormal, planePosition);
 
-        // Plane‚Ì–@üƒxƒNƒgƒ‹‚ðŽ¦‚·ü‚ð•`‰æ
-        Gizmos.DrawLine(_knifeObject.transform.position, _knifeObject.transform.position + _knifeObject.transform.up * 5); // –@ü•ûŒü‚Éü‚ð•`‰æ
+        //// Plane‚Ì–@üƒxƒNƒgƒ‹‚ðŽ¦‚·ü‚ð•`‰æ
+        //Gizmos.DrawLine(_knifeObject.transform.position, _knifeObject.transform.position + _knifeObject.transform.up * 5); // –@ü•ûŒü‚Éü‚ð•`‰æ
 
-        // Plane‚ÌˆÊ’u‚ðŽ¦‚·¬‚³‚È‹…‚ð•`‰æ
-        Gizmos.color = UnityEngine.Color.green;
-        Gizmos.DrawSphere(_knifeObject.transform.position, 0.1f); // Plane‚ÌˆÊ’u‚É‹…‚ð•`‰æ
+        //// Plane‚ÌˆÊ’u‚ðŽ¦‚·¬‚³‚È‹…‚ð•`‰æ
+        //Gizmos.color = UnityEngine.Color.green;
+        //Gizmos.DrawSphere(_knifeObject.transform.position, 0.1f); // Plane‚ÌˆÊ’u‚É‹…‚ð•`‰æ
 
-        Gizmos.matrix = Matrix4x4.TRS(planePosition, Quaternion.LookRotation(planeNormal), Vector3.one);
-        Gizmos.color = new Color(0, 1, 0, 0.4f);
-        Gizmos.DrawCube(Vector3.zero, new Vector3(2, 2, 0f)); // Matrix‚ÉŠî‚Ã‚­ˆÊ’u‚É•`‰æ
-        Gizmos.color = new Color(0, 1, 0, 1f);
-        Gizmos.DrawWireCube(Vector3.zero, new Vector3(2, 2, 0f)); // Matrix‚ÉŠî‚Ã‚­ˆÊ’u‚É•`‰æ
-        Gizmos.matrix = transform.localToWorldMatrix;
+        //Gizmos.matrix = Matrix4x4.TRS(planePosition, Quaternion.LookRotation(planeNormal), Vector3.one);
+        //Gizmos.color = new Color(0, 1, 0, 0.4f);
+        //Gizmos.DrawCube(Vector3.zero, new Vector3(2, 2, 0f)); // Matrix‚ÉŠî‚Ã‚­ˆÊ’u‚É•`‰æ
+        //Gizmos.color = new Color(0, 1, 0, 1f);
+        //Gizmos.DrawWireCube(Vector3.zero, new Vector3(2, 2, 0f)); // Matrix‚ÉŠî‚Ã‚­ˆÊ’u‚É•`‰æ
+        //Gizmos.matrix = transform.localToWorldMatrix;
     }
 }
