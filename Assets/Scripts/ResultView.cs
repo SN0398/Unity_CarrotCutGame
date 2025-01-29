@@ -24,7 +24,9 @@ public class ResultView : MonoBehaviour
 
         foreach (var target in cutTargets)
         {
-            GameObject cutTarget = Instantiate(target, _spawnPoint, Quaternion.identity);
+            GameObject cutTarget = target;
+            target.transform.position = _spawnPoint;
+            target.transform.localScale *= 12;
             await UniTask.Delay(TimeSpan.FromSeconds(0.4f), cancellationToken: token);
         }
     }

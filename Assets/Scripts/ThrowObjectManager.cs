@@ -16,9 +16,11 @@ public class ThrowObjectManager : MonoBehaviour
     public ICutManager cutManager;
     private int _prevIndex;
 
-    public async UniTask StartThrowAsync(int throwNum, float throwDelay, CancellationTokenSource cts)
+    public async UniTask StartThrowAsync(int throwNum, float throwDelay, CancellationToken token)
     {
-        var token = cts.Token;
+        List<GameObject> throwObjects = new List<GameObject>();
+
+        // 先に投げる人参を生成しておく
         for(int i = 0; i < throwNum;i++)
         {
             // ランダムな位置から人参を投げる
@@ -33,18 +35,26 @@ public class ThrowObjectManager : MonoBehaviour
 
             // オブジェクト複製して投げる
             GameObject subject = Instantiate(_throwObjectPrefab, spawnPoint, Quaternion.identity);
-            ThrowScript.ThrowObject(subject, _targetOrigin, _targetOffset);
+            subject.SetActive(false);
+            throwObjects.Add(subject);
             // 切断対象に追加
             cutManager.AddCutTarget(subject);
 
+        }
+        foreach(var obj in throwObjects)
+        {
+            obj.SetActive(true);
+            ThrowScript.ThrowObject(obj, _targetOrigin, _targetOffset);
             // 指定秒待って繰り返し
             await UniTask.Delay(TimeSpan.FromSeconds(throwDelay), cancellationToken: token);
         }
+        // 最後の人参が投げ終わるくらいまで待つ
+        await UniTask.Delay(TimeSpan.FromSeconds(1f), cancellationToken: token);
     }
 
-    public bool IsMissed(Vector3 position)
+    public bool IsMissed(GameObject target)
     {
-        if (position.z <= Camera.main.transform.position.z) 
+        if (target.transform.position.z <= Camera.main.transform.position.z) 
         {
             return true;
         }
@@ -59,7 +69,7 @@ public class ThrowObjectManager : MonoBehaviour
     {
         foreach(var obj in cutManager.CutTarget)
         {
-            if(IsMissed(obj.transform.position))
+            if(IsMissed(obj))
             {
                 return true;
             }

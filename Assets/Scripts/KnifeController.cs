@@ -65,6 +65,11 @@ public class KnifeController : MonoBehaviour
 
         // 移動方向を計算
         Vector3 direction = (p1 - p2).normalized;
+        //// 刃が上方向を向いていたら下方向に直す
+        //if(direction.y < 0)
+        //{
+        //    direction.y *= -1;
+        //}
 
         // Z軸の回転を計算（atan2を使用して角度を求める）
         float angleZ = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
