@@ -1,3 +1,5 @@
+using JetBrains.Annotations;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using static MeshCut;
@@ -96,22 +98,87 @@ public class MeshConstructionHelper
     public static List<MeshConstructionHelper> MeshDivision(MeshConstructionHelper mesh)
     {
         List<MeshConstructionHelper> meshGroup = new List<MeshConstructionHelper>();
-
+        List<int> meshGroupIndex = new List<int>(mesh._triangles.Count / 3);
+        Dictionary<Vector3, int> verticesDic = new Dictionary<Vector3, int>();
+        
         // ポリゴンは三つの頂点で構成されるので３づつ増分して走査
         for (int i = 0; i < mesh._triangles.Count; i += 3)
         {
-            // 三角形が保有する頂点のインデックスを取得
+            // インデックス
             int indexA = mesh._triangles[i];
             int indexB = mesh._triangles[i + 1];
             int indexC = mesh._triangles[i + 2];
-
+            // 頂点座標
             var v1 = mesh._vertices[indexA];
             var v2 = mesh._vertices[indexB];
             var v3 = mesh._vertices[indexC];
+            // メッシュグループインデックス
+            var containIndex1 = 0;
+            var containIndex2 = 0;
+            var containIndex3 = 0;
+            // メッシュグループに所属しているか
+            var hasContain1 = verticesDic.TryGetValue(v1, out containIndex1);
+            var hasContain2 = verticesDic.TryGetValue(v2, out containIndex2);
+            var hasContain3 = verticesDic.TryGetValue(v3, out containIndex3);
 
-
+            /*
+            ３頂点に対して走査を行うセクションでは、次のケースが考えられる。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+            １：すべての頂点が同じメッシュグループ、もしくはそれぞれ別々のメッシュグループに割り振られている。
+            ２：頂点のうち１つがメッシュグループに所属していて、それ以外はメッシュグループに割り振られていない。
+            ３：頂点のうち２つが同一または別々のメッシュグループに所属していて、もう一つはメッシュグループに割り振られていない。
+            ４：すべての頂点がメッシュグループに所属していない。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+            それに対して、それぞれ以下の対応を行う。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+            １：それぞれのメッシュグループを結合して、頂点のメッシュグループインデックスを更新。
+            ２：メッシュグループに所属していない２つの頂点を、メッシュグループに所属している一つの頂点と同じメッシュグループインデックスを割り振る。
+            ３：２つの頂点の指すメッシュグループが同一である場合はそのまま、同一出ない場合は2つのメッシュグループを結合し、そのメッシュグループインデックスを３つの頂点に割り振る。
+            ４：新しいメッシュグループを作成して、そのインデックスを３つの頂点に割り振る。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+             */
+            if (hasContain1 && hasContain2 && hasContain3)
+            {
+                // すべての頂点が異なるメッシュグループの場合、統合する
+                if (containIndex1 != containIndex2 || containIndex1 != containIndex3)
+                {
+                    int newIndex = Math.Min(containIndex1, Math.Min(containIndex2, containIndex3));
+                    meshGroupIndex[containIndex1] = newIndex;
+                    meshGroupIndex[containIndex2] = newIndex;
+                    meshGroupIndex[containIndex3] = newIndex;
+                }
+            }
+            else if (hasContain1 || hasContain2 || hasContain3)
+            {
+                int existingGroup = hasContain1 ? containIndex1 : hasContain2 ? containIndex2 : containIndex3;
+                verticesDic[v1] = existingGroup;
+                verticesDic[v2] = existingGroup;
+                verticesDic[v3] = existingGroup;
+            }
+            else
+            {
+                // 新しいメッシュグループを作成
+                int newGroupIndex = meshGroup.Count;
+                verticesDic[v1] = newGroupIndex;
+                verticesDic[v2] = newGroupIndex;
+                verticesDic[v3] = newGroupIndex;
+                meshGroup.Add(new MeshConstructionHelper());
+            }
         }
 
         return meshGroup;
+    }
+}
+
+// 切断面構築用クラス
+public class SlicedMeshConstructionHelper
+{
+    MeshConstructionHelper helper {  get; set; }
+    List<int> pointsAlongPlane {  get; set; }
+
+    public SlicedMeshConstructionHelper()
+    {
+        pointsAlongPlane = new List<int>();
+
     }
 }

@@ -1,8 +1,11 @@
+using JetBrains.Annotations;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Xml.Schema;
 using UnityEngine;
 using static MeshCut;
 
+// Refference:
 // unityメッシュ
 // https://qiita.com/keito_takaishi/items/8e56d5117ee90502e864
 // メッシュカットサンプル
@@ -184,6 +187,111 @@ public class MeshCut : MonoBehaviour
         return (positiveMesh, negativeMesh);
     }
 
+    public static List<MeshConstructionHelper> CutDevide
+        (GameObject subject, Vector3 planeOrigin, Vector3 planeNormal)
+    {
+        // 初期化
+        GetMeshInfo(subject);   // 初期メッシュ情報取得
+        plane = new Plane(planeNormal, planeOrigin);    // 切断面定義
+
+        // 切断面に沿った点のリスト
+        List<VertexData> pointsAlongPlane = new List<VertexData>();
+
+        // 左側のメッシュ、右側のメッシュ
+        MeshConstructionHelper positiveMesh = new MeshConstructionHelper();
+        MeshConstructionHelper negativeMesh = new MeshConstructionHelper();
+
+        // ポリゴンで繋がっている部分を同一メッシュとしてグルーピングする
+        List<MeshConstructionHelper> positiveMeshGroup = new List<MeshConstructionHelper>();
+        List<MeshConstructionHelper> negativeMeshGroup = new List<MeshConstructionHelper>();
+
+        bool[] sides = new bool[3];
+        // ポリゴンは三つの頂点で構成されるので３づつ増分して走査
+        for (int i = 0; i < triangles.Count; i += 3)
+        {
+            // 三角形が保有する頂点のインデックスを取得
+            int indexA = triangles[i];
+            int indexB = triangles[i+1];
+            int indexC = triangles[i+2];
+
+            // 頂点データ取得
+            var vA = GetVertexData(indexA);
+            var vB = GetVertexData(indexB);
+            var vC = GetVertexData(indexC);
+
+            // 頂点それぞれの面との左右判定
+            sides[0] = ComputeSide(vA.Position);
+            sides[1] = ComputeSide(vB.Position);
+            sides[2] = ComputeSide(vC.Position);
+
+            bool isABSameSide = sides[0] == sides[1];
+            bool isBCSameSide = sides[1] == sides[2];
+
+            // 全ての頂点が片側に寄っていればそのままどちらかのメッシュにポリゴンとして登録
+            if (isABSameSide && isBCSameSide)
+            {
+                MeshConstructionHelper helper = sides[0] ? positiveMesh : negativeMesh;
+                helper.AddMeshSection(vA, vB, vC);
+            }
+            else
+            {
+                VertexData intersectionD;
+                VertexData intersectionE;
+                MeshConstructionHelper helperA = sides[0] ? positiveMesh : negativeMesh;
+                MeshConstructionHelper helperB = sides[1] ? positiveMesh : negativeMesh;
+                MeshConstructionHelper helperC = sides[2] ? positiveMesh : negativeMesh;
+                // Cが片側にある
+                if (isABSameSide)
+                {
+                    // 交点の算出
+                    intersectionD = ComputeIntersectionVertex(indexA, indexC);  // AとC
+                    intersectionE = ComputeIntersectionVertex(indexB, indexC);  // BとC
+                    // 交点から新しく生成される二つの頂点で新しくポリゴンを形成する
+                    // ポリゴンはAB側は二つ、C側は一つ
+                    // ポリゴンに登録する頂点は反時計回りに順番
+                    helperA.AddMeshSection(vA, vB, intersectionE);              // A -> B -> E
+                    helperA.AddMeshSection(vA, intersectionE, intersectionD);   // A -> E -> D
+                    helperC.AddMeshSection(intersectionE, vC, intersectionD);   // E -> C -> D
+                }
+                // Aが片側にある
+                else if (isBCSameSide)
+                {
+                    intersectionD = ComputeIntersectionVertex(indexB, indexA);
+                    intersectionE = ComputeIntersectionVertex(indexC, indexA);
+                    helperB.AddMeshSection(vB, vC, intersectionE);
+                    helperB.AddMeshSection(vB, intersectionE, intersectionD);
+                    helperA.AddMeshSection(intersectionE, vA, intersectionD);
+                }
+                // Bが片側にある
+                else
+                {
+                    intersectionD = ComputeIntersectionVertex(indexA, indexB);
+                    intersectionE = ComputeIntersectionVertex(indexC, indexB);
+                    helperA.AddMeshSection(vA, intersectionE, vC);
+                    helperA.AddMeshSection(intersectionD, intersectionE, vA);
+                    helperB.AddMeshSection(vB, intersectionE, intersectionD);
+                }
+                // 切断面を構成する頂点をリストに追加
+                pointsAlongPlane.Add(intersectionD);
+                pointsAlongPlane.Add(intersectionE);
+            }
+        }
+
+
+
+        // 切断面の構築
+        foreach(var mesh in positiveMeshGroup)
+        {
+            FillCutSurface(subject, ref positiveMesh, planeNormal, pointsAlongPlane);
+        }
+        foreach(var mesh in negativeMeshGroup)
+        {
+            FillCutSurface(subject, ref negativeMesh, planeNormal, pointsAlongPlane);
+        }
+        positiveMeshGroup.AddRange(negativeMeshGroup);
+        return positiveMeshGroup;
+    }
+
     public static Vector3 ComputeHalfPoint(List<VertexData> vertices)
     {
         if (vertices.Count > 0)
@@ -222,6 +330,7 @@ public class MeshCut : MonoBehaviour
         VertexData halfPoint = new VertexData()
         {
             Position = ComputeHalfPoint(pointsAlongPlane),
+            Normal = cutNormal,
             Uv = new Vector3(0.5f, 0.5f)
         };
 
@@ -232,23 +341,23 @@ public class MeshCut : MonoBehaviour
             VertexData v2 = pointsAlongPlane[(i + 1) % pointsAlongPlane.Count];
             VertexData v3 = halfPoint;
 
-            Vector3 normal = subject.transform.InverseTransformDirection(ComputeNormal(halfPoint, v2, v1));
-
-            float dot = Vector3.Dot(normal, cutNormal);
-
+            Vector3 normal = subject.transform.InverseTransformDirection(ComputeNormal(v3, v2, v1));
+            Vector3 localCutNormal = subject.transform.InverseTransformDirection(cutNormal); // cutNormal もローカルに変換
+            float dot = Vector3.Dot(normal, localCutNormal);
+            // 頂点の順番を反時計回りになるようにポリゴン追加
             if (dot > 0)
             {
 				v1.Normal = -normal;
 				v2.Normal = -normal;
 				v3.Normal = -normal;
-				mesh.AddMeshSection(v1, v2, halfPoint);
+				mesh.AddMeshSection(v1, v2, v3);
             }
             else
             {
 				v1.Normal = normal;
 				v2.Normal = normal;
 				v3.Normal = normal;
-				mesh.AddMeshSection(v2, v1, halfPoint);
+				mesh.AddMeshSection(v2, v1, v3);
             }
         }
     }

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UniRx;
 using UnityEngine;
 
-public class CutManager : MonoBehaviour
+public class MeshCutManager : MonoBehaviour
 {
     public GameObject initObject;
     private List<GameObject> _cutTarget = new List<GameObject>();
@@ -19,22 +19,37 @@ public class CutManager : MonoBehaviour
     private Dictionary<GameObject, InteractData> _interactObjects =
         new Dictionary<GameObject, InteractData>();
 
+    public void ResetFunc()
+    {
+        foreach(var obj in _cutTarget)
+        {
+            Destroy(obj);
+        }
+        _cutTarget.Clear();
+        _interactObjects.Clear();
+
+        var tmp = Instantiate(initObject);
+        tmp.SetActive(true);
+        _cutTarget.Add(tmp);
+    }
+
     private void Awake()
     {
-        _cutTarget.Add(initObject);
+        var obj = Instantiate(initObject);
+        initObject.SetActive(false);
+        _cutTarget.Add(obj);
     }
 
     void Update()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
-        bool isHit = Physics.Raycast(ray, out hit);
         List<GameObject> removeTargets = new List<GameObject>();
 
         foreach (var target in _cutTarget)
         {
             // 接触の検知
-            if (isHit)
+            if (Physics.Raycast(ray, out hit))
             {
                 // レイキャストに当たったのが対象オブジェクト
                 if (hit.collider.gameObject == target)
@@ -51,7 +66,6 @@ public class CutManager : MonoBehaviour
                     }
                     else
                     {
-                        Debug.Log("接触開始");
                         // 新規接触開始
                         _interactObjects[target] = new InteractData
                         {
@@ -66,7 +80,6 @@ public class CutManager : MonoBehaviour
                 {
                     if (_interactObjects[target].inInteract)
                     {
-                        Debug.Log("接触終了");
                         removeTargets.Add(target);
                     }
                 }
@@ -80,7 +93,7 @@ public class CutManager : MonoBehaviour
 
             var planePosition = (temp.firstPosition + temp.lastPosition) / 2;
 
-            Vector3 direction = temp.lastPosition - temp.firstPosition;
+            Vector3 direction = temp.firstPosition - temp.lastPosition;
             var planeNormal = Vector3.Cross(direction, Vector3.forward).normalized;
 
             var meshes = MeshCut.Cut(target, planePosition, planeNormal);
