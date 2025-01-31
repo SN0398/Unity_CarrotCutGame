@@ -98,7 +98,7 @@ public class MeshCut : MonoBehaviour
     {
         return plane.GetSide(p);
     }
-        
+
     public static (MeshConstructionHelper positive, MeshConstructionHelper negative) Cut
         (GameObject subject, Vector3 planeOrigin, Vector3 planeNormal)
     {
@@ -180,6 +180,7 @@ public class MeshCut : MonoBehaviour
                 pointsAlongPlane.Add(intersectionE);
             }
         }
+
         // 切断面の構築
         FillCutSurface(subject, ref positiveMesh, planeNormal, pointsAlongPlane);
         FillCutSurface(subject, ref negativeMesh, -planeNormal, pointsAlongPlane);
@@ -276,20 +277,172 @@ public class MeshCut : MonoBehaviour
                 pointsAlongPlane.Add(intersectionE);
             }
         }
+        var positiveResult = MeshDivision(positiveMesh, pointsAlongPlane);
+        var negativeResult = MeshDivision(negativeMesh, pointsAlongPlane);
 
-
+        positiveMeshGroup = positiveResult.meshList;
+        negativeMeshGroup = negativeResult.meshList;
 
         // 切断面の構築
-        foreach(var mesh in positiveMeshGroup)
+        for(int i = 0; i < positiveMeshGroup.Count; i++)
         {
-            FillCutSurface(subject, ref positiveMesh, planeNormal, pointsAlongPlane);
+            var obj = positiveMeshGroup[i];
+            FillCutSurface(subject, ref obj, planeNormal, positiveResult.pointsAlongPlaneList[i]);
         }
-        foreach(var mesh in negativeMeshGroup)
+        for(int i = 0; i < negativeMeshGroup.Count; i++)
         {
-            FillCutSurface(subject, ref negativeMesh, planeNormal, pointsAlongPlane);
+            var obj = negativeMeshGroup[i];
+            FillCutSurface(subject, ref obj, -planeNormal, negativeResult.pointsAlongPlaneList[i]);
         }
+        
         positiveMeshGroup.AddRange(negativeMeshGroup);
         return positiveMeshGroup;
+    }
+
+    public static (List<MeshConstructionHelper> meshList, List<List<VertexData>> pointsAlongPlaneList)
+        MeshDivision(MeshConstructionHelper mesh, List<VertexData> pointsAlongPlane)
+    {
+        List<MeshConstructionHelper> meshGroup = new List<MeshConstructionHelper>();
+        Dictionary<Vector3, int> verticesDic = new Dictionary<Vector3, int>();
+
+        // ポリゴンごとに走査
+        for (int i = 0; i < mesh.triangles.Count; i += 3)
+        {
+            // インデックス
+            int[] index = new int[3];
+            index[0] = mesh.triangles[i];
+            index[1] = mesh.triangles[i + 1];
+            index[2] = mesh.triangles[i + 2];
+            // 頂点座標
+            Vector3[] v = new Vector3[3];
+            v[0] = mesh.vertices[index[0]];
+            v[1] = mesh.vertices[index[1]];
+            v[2] = mesh.vertices[index[2]];
+            // メッシュグループインデックス
+            int[] containIndex = new int[3];
+            containIndex[0] = 0;
+            containIndex[1] = 0;
+            containIndex[2] = 0;
+            // メッシュグループに所属しているか
+            bool[] hasContain = new bool[3];
+            hasContain[0] = verticesDic.TryGetValue(v[0], out containIndex[0]);
+            hasContain[1] = verticesDic.TryGetValue(v[1], out containIndex[1]);
+            hasContain[2] = verticesDic.TryGetValue(v[2], out containIndex[2]);
+
+            /*
+            ３頂点に対して走査を行うセクションでは、次のケースが考えられる。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+            １：すべての頂点が同じメッシュグループ、もしくはそれぞれ別々のメッシュグループに割り振られている。
+            ２：頂点のうち１つがメッシュグループに所属していて、それ以外はメッシュグループに割り振られていない。
+            ３：頂点のうち２つが同一または別々のメッシュグループに所属していて、もう一つはメッシュグループに割り振られていない。
+            ４：すべての頂点がメッシュグループに所属していない。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+            それに対して、それぞれ以下の対応を行う。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+            １：それぞれのメッシュグループを結合して、頂点のメッシュグループインデックスを更新。
+            ２：メッシュグループに所属していない２つの頂点を、メッシュグループに所属している一つの頂点と同じメッシュグループインデックスを割り振る。
+            ３：２つの頂点の指すメッシュグループが同一である場合はそのまま、同一出ない場合は2つのメッシュグループを結合し、そのメッシュグループインデックスを３つの頂点に割り振る。
+            ４：新しいメッシュグループを作成して、そのインデックスを３つの頂点に割り振る。
+            ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+             */
+            // すべての頂点がメッシュグループに割り振り済み
+            if (hasContain[0] && hasContain[1] && hasContain[2])
+            {
+                Debug.Log("呼ばた");
+
+            }
+            // いずれかの頂点がメッシュグループに割り振り済み
+            else if (hasContain[0] || hasContain[1] || hasContain[2])
+            {
+                Debug.Log("呼ばた1");
+                // 二つの割り振り済み頂点を探索
+                if (hasContain[0] && hasContain[1])
+                {
+                    // 指すメッシュが同一なら単純にポリゴン追加
+                    if (containIndex[0] == containIndex[1])
+                    {
+                        // 未割り振りの頂点にメッシュ割り振り
+                        verticesDic.Add(v[2], containIndex[0]);
+                        // ポリゴン追加
+                        meshGroup[containIndex[0]].AddMeshSection(GetVertexData(index[0]), GetVertexData(index[1]), GetVertexData(index[2]));
+                    }
+                    else
+                    {
+                        // 未割り振りの頂点にメッシュ割り振り
+                        verticesDic.Add(v[2], containIndex[0]);
+                        // メッシュを結合
+                        meshGroup[containIndex[0]].MergeHelper(meshGroup[containIndex[1]]);
+                        // 指すメッシュを同一にする
+                        verticesDic[v[1]] = containIndex[0];
+                        // ポリゴン追加
+                        meshGroup[containIndex[0]].AddMeshSection(GetVertexData(index[0]), GetVertexData(index[1]), GetVertexData(index[2]));
+                    }
+                }
+                if (hasContain[0] && hasContain[2])
+                {
+                    if (containIndex[0] == containIndex[2])
+                    {
+                        verticesDic.Add(v[1], containIndex[0]);
+                        meshGroup[containIndex[0]].AddMeshSection(GetVertexData(index[0]), GetVertexData(index[1]), GetVertexData(index[2]));
+                    }
+                    else
+                    {
+                        verticesDic.Add(v[1], containIndex[0]);
+                        meshGroup[containIndex[0]].MergeHelper(meshGroup[containIndex[2]]);
+                        verticesDic[v[2]] = containIndex[0];
+                        meshGroup[containIndex[0]].AddMeshSection(GetVertexData(index[0]), GetVertexData(index[1]), GetVertexData(index[2]));
+                    }
+                }
+                if (hasContain[1] && hasContain[2])
+                {
+                    if (containIndex[1] == containIndex[2])
+                    {
+                        verticesDic.Add(v[0], containIndex[1]);
+                        meshGroup[containIndex[1]].AddMeshSection(GetVertexData(index[0]), GetVertexData(index[1]), GetVertexData(index[2]));
+                    }
+                    else
+                    {
+                        verticesDic.Add(v[0], containIndex[1]);
+                        meshGroup[containIndex[1]].MergeHelper(meshGroup[containIndex[2]]);
+                        verticesDic[v[2]] = containIndex[1];
+                        meshGroup[containIndex[1]].AddMeshSection(GetVertexData(index[0]), GetVertexData(index[1]), GetVertexData(index[2]));
+                    }
+                }
+            }
+            // どの頂点もメッシュグループに割り振られていない
+            else
+            {
+                Debug.Log("呼ばた2");
+                // 新しいメッシュグループを作成
+                MeshConstructionHelper helper = new MeshConstructionHelper();
+                helper.AddMeshSection(GetVertexData(index[0]), GetVertexData(index[1]), GetVertexData(index[2]));
+                meshGroup.Add(helper);
+                int newGroupIndex = meshGroup.Count - 1; ;
+                // 頂点に対応インデックスを割り振る
+                verticesDic.Add(v[0], newGroupIndex);
+                verticesDic.Add(v[1], newGroupIndex);
+                verticesDic.Add(v[2], newGroupIndex);
+            }
+        }
+        Debug.Log("呼ばた3");
+        List<MeshConstructionHelper> resultMeshList = new List<MeshConstructionHelper>();
+        List<int> closedList = new List<int>();
+        foreach(var obj in verticesDic)
+        {
+            if (!closedList.Contains(obj.Value))
+            {
+                closedList.Add(obj.Value);
+                resultMeshList.Add(meshGroup[obj.Value]);
+            }
+        }
+        List<List<VertexData>> pointsAlongPlaneResult = new List<List<VertexData>>();
+        foreach (var v in pointsAlongPlane)
+        {
+            int index = verticesDic[v.Position];
+            pointsAlongPlaneResult[index].Add(v);
+        }
+
+        return (resultMeshList, pointsAlongPlaneResult);
     }
 
     public static Vector3 ComputeHalfPoint(List<VertexData> vertices)

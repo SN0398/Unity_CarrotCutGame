@@ -2,11 +2,13 @@ using Cysharp.Threading.Tasks.Triggers;
 using System.Collections;
 using System.Collections.Generic;
 using UniRx;
+using UnityEditor.AI;
 using UnityEngine;
 
 public class MeshCutManager : MonoBehaviour
 {
-    public GameObject initObject;
+    public List<GameObject> initObjects;
+    private int _currentObjectIndex = 0;
     private List<GameObject> _cutTarget = new List<GameObject>();
 
     private struct InteractData
@@ -28,15 +30,21 @@ public class MeshCutManager : MonoBehaviour
         _cutTarget.Clear();
         _interactObjects.Clear();
 
-        var tmp = Instantiate(initObject);
+        var tmp = Instantiate(initObjects[_currentObjectIndex]);
         tmp.SetActive(true);
         _cutTarget.Add(tmp);
     }
 
+    public void SwitchObject()
+    {
+        _currentObjectIndex = (_currentObjectIndex + 1) % initObjects.Count;
+        ResetFunc();
+    }
+
     private void Awake()
     {
-        var obj = Instantiate(initObject);
-        initObject.SetActive(false);
+        var obj = Instantiate(initObjects[_currentObjectIndex]);
+        initObjects[_currentObjectIndex].SetActive(false);
         _cutTarget.Add(obj);
     }
 
@@ -96,36 +104,29 @@ public class MeshCutManager : MonoBehaviour
             Vector3 direction = temp.firstPosition - temp.lastPosition;
             var planeNormal = Vector3.Cross(direction, Vector3.forward).normalized;
 
-            var meshes = MeshCut.Cut(target, planePosition, planeNormal);
+            var meshes = MeshCut.CutDevide(target, planePosition, planeNormal);
 
-            var positiveMesh = meshes.positive;
-            var negativeMesh = meshes.negative;
-            var positiveObject = Instantiate(target);
-            var negativeObject = Instantiate(target);
-
-            positiveMesh.InverseTransformPoints(target);
-            negativeMesh.InverseTransformPoints(target);
-
-            positiveObject.GetComponent<MeshFilter>().mesh = positiveMesh.ConstructMesh();
-            negativeObject.GetComponent<MeshFilter>().mesh = negativeMesh.ConstructMesh();
-
-            positiveObject.GetComponent<MeshCollider>().sharedMesh = positiveObject.GetComponent<MeshFilter>().mesh;
-            negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
-
-            float dotProduct = Vector3.Dot(planeNormal, Vector3.up);
-            if (dotProduct > 0)
+            bool flag = true;
+            for(int i = 0;i<meshes.Count;i++)
             {
-                positiveObject.GetComponent<Rigidbody>().AddForce(Vector3.up * 5);
-                negativeObject.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5);
+                var obj = Instantiate(target);
+                meshes[i].InverseTransformPoints(target);
+                obj.GetComponent<MeshFilter>().mesh = meshes[i].ConstructMesh();
+                obj.GetComponent<MeshCollider>().sharedMesh = obj.GetComponent<MeshFilter>().mesh;
+                float dotProduct = Vector3.Dot(planeNormal, Vector3.up);
+                if (dotProduct > 0)
+                {
+                    if (flag) { obj.GetComponent<Rigidbody>().AddForce(Vector3.up * 5); }
+                    else { obj.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5); }
+                }
+                else
+                {
+                    if (flag) { obj.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5); }
+                    else { obj.GetComponent<Rigidbody>().AddForce(Vector3.up * 5); }
+                }
+                flag = !flag;
+                _cutTarget.Add(obj);
             }
-            else
-            {
-                negativeObject.GetComponent<Rigidbody>().AddForce(Vector3.up * 5);
-                positiveObject.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5);
-            }
-
-            _cutTarget.Add(positiveObject);
-            _cutTarget.Add(negativeObject);
 
             Destroy(target);
         }

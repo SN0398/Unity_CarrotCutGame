@@ -10,4 +10,9 @@ public class MeshcutView : MonoBehaviour
     {
         _meshCutManager.ResetFunc();
     }
+
+    public void OnClickSwitchObject()
+    {
+        _meshCutManager.SwitchObject();
+    }
 }
