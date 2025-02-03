@@ -18,13 +18,16 @@ public sealed class InGameView : MonoBehaviour, IInGameView
     [SerializeField] private TextMeshProUGUI countdownText;  // カウントダウン表示用
     [SerializeField] private TextMeshProUGUI phaseResultText;  // フェーズクリア表示用
     [SerializeField] private TextMeshProUGUI currentPhaseText;  // 現在のフェーズ表示用
+    [SerializeField] private TextMeshProUGUI scoreText;  // スコア表示用
     [SerializeField] private AudioSource audioSource;        // サウンド再生用
     [SerializeField] private AudioClip sliceSound;  // カウントダウン用音声
+    [SerializeField] private AudioClip bgm;  // BGM
 
     private void Start()
     {
         countdownText.enabled = false;
         phaseResultText.enabled = false;
+        UpdateScore();
     }
 
     public void DisplayCountdown(int count)
@@ -62,5 +65,10 @@ public sealed class InGameView : MonoBehaviour, IInGameView
     public void DisplayCurrentPhase(int phase)
     {
         currentPhaseText.text = "CurrentPhase " + phase.ToString();
+    }
+
+    public void UpdateScore()
+    {
+        scoreText.text = "Score " + Scoreboard.score.ToString();
     }
 }

@@ -43,17 +43,18 @@ public class GameManager : MonoBehaviour, ICutManager
 
     // UI系
     [SerializeField] private InGameView inGameView;
-    private Subject<int> _countdownSubject = new Subject<int>();  // カウントダウンの通知
+    private Subject<int> _countdownSubject = new Subject<int>();            // カウントダウンの通知
     private Subject<Unit> _countdownFinishedSubject = new Subject<Unit>();  // カウントダウン終了の通知
-    private Subject<Unit> _playSliceSoundSubject = new Subject<Unit>();  // サウンド再生の通知
+    private Subject<Unit> _playSliceSoundSubject = new Subject<Unit>();     // サウンド再生の通知
     private Subject<int> _displaycurrentPhaseSubject = new Subject<int>();  // 現在のフェーズの通知
-    private Subject<bool> _notifyPhaseClearSubject = new Subject<bool>();  // フェーズ成功/失敗の通知
+    private Subject<Unit> _notifyScoreSubject = new Subject<Unit>();        // スコア変動の通知
+    private Subject<bool> _notifyPhaseClearSubject = new Subject<bool>();   // フェーズ成功/失敗の通知
 
     [Serializable]
     public struct PhaseData
     {
-        public float ThrowDelay;
-        public int ThrowNum;
+        public float ThrowSpeed;
+        public float ThrowNumPerSecond;
     }
 
     private void Awake()
@@ -80,6 +81,7 @@ public class GameManager : MonoBehaviour, ICutManager
         _countdownFinishedSubject.Subscribe(x => inGameView.HideCountdownText());
         _playSliceSoundSubject.Subscribe(x => inGameView.PlaySliceSound());
         _displaycurrentPhaseSubject.Subscribe(x => inGameView.DisplayCurrentPhase(x));
+        _notifyScoreSubject.Subscribe(x => inGameView.UpdateScore());
         _notifyPhaseClearSubject.Subscribe(x => inGameView.DisplayPhaseResult(x,2f).Forget());
 
         Scoreboard.gameObjects.Clear();
@@ -95,20 +97,20 @@ public class GameManager : MonoBehaviour, ICutManager
     private async UniTask PhaseLoop()
     {
         CancellationToken token = this.GetCancellationTokenOnDestroy();
-        int PhaseNum = _phaseData.Count;
+        int PhaseNum = 0;
 
-        for (int i = 0; i < PhaseNum; i++)
+        while(true)
         {
             // フェーズ情報初期化
-            int throwNum = _phaseData[i].ThrowNum;
-            float throwDelay = _phaseData[i].ThrowDelay;
+            float throwSpeed = _phaseData[PhaseNum].ThrowSpeed;
+            float throwNumPerSecond = _phaseData[PhaseNum].ThrowNumPerSecond;
 
             // スタート前カウントダウン
             await StartCountdown();
 
             // ニンジン投げ
-            await _throwManager.StartThrowAsync(throwNum, throwDelay, token);
-            
+            await _throwManager.StartThrowAsync(5f, throwSpeed, throwNumPerSecond, token);
+
             // 切り損ねたオブジェクトがある
             if (!_throwManager.IsExistMissedObject())
             {
@@ -124,6 +126,10 @@ public class GameManager : MonoBehaviour, ICutManager
             // フェーズ移行処理
             Scoreboard.maxPhase++;
             var phase = Scoreboard.maxPhase + 1;
+            if(PhaseNum <= _phaseData.Count)
+            {
+                PhaseNum++;
+            }
             _displaycurrentPhaseSubject.OnNext(phase);
         }
         SceneManager.LoadScene("Result", LoadSceneMode.Single);
@@ -143,13 +149,32 @@ public class GameManager : MonoBehaviour, ICutManager
         _countdownFinishedSubject.OnNext(Unit.Default);
     }
 
+    public async UniTask FlyObject(GameObject subject, float right)
+    {
+        Vector3 v = new Vector3(right, 4f, -1f);
+        subject.GetComponent<Rigidbody>().AddForce(v, ForceMode.Impulse);
+        await UniTask.Delay(TimeSpan.FromSeconds(0.35f));
+        _cutTarget.Add(subject);
+    }
+
+    public async UniTask DisableObject(GameObject subject, float duration)
+    {
+        await UniTask.Delay(TimeSpan.FromSeconds(duration), cancellationToken: subject.GetCancellationTokenOnDestroy());
+        
+        subject.SetActive(false);
+
+        DontDestroyOnLoad(subject);
+
+        Scoreboard.gameObjects.Add(subject);
+    }
+
     public List<GameObject> CutTarget => new List<GameObject>(_cutTarget);
 
     public void CutObject(GameObject subject)
     {
         _cutTarget.Remove(subject);
 
-        var planePosition = _knifeController.KnifeObject.transform.position;
+        var planePosition = subject.transform.position;
         var planeNormal = _knifeController.KnifeObject.transform.up;
         var meshes = MeshCut.Cut(subject, planePosition, planeNormal);
 
@@ -171,19 +196,22 @@ public class GameManager : MonoBehaviour, ICutManager
         positiveObject.GetComponent<MeshCollider>().sharedMesh = positiveObject.GetComponent<MeshFilter>().mesh;
         negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
 
+        FlyObject(positiveObject, -2f).Forget();
+        FlyObject(negativeObject, 2f).Forget();
+
         _slicedObject.Add(positiveObject);
         _slicedObject.Add(negativeObject);
 
-        Scoreboard.gameObjects.Add(positiveObject);
-        Scoreboard.gameObjects.Add(negativeObject);
-
-        DontDestroyOnLoad(positiveObject);
-        DontDestroyOnLoad(negativeObject);
+        DisableObject(positiveObject, 5f).Forget();
+        DisableObject(negativeObject, 5f).Forget();
 
         Destroy(subject);
 
         // SE再生通知
         _playSliceSoundSubject.OnNext(Unit.Default);
+
+        Scoreboard.score += 200;
+        _notifyScoreSubject.OnNext(Unit.Default);
     }
 
     public void AddCutTarget(GameObject target)

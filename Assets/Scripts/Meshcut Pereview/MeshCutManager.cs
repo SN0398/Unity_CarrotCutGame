@@ -104,8 +104,7 @@ public class MeshCutManager : MonoBehaviour
             Vector3 direction = temp.firstPosition - temp.lastPosition;
             var planeNormal = Vector3.Cross(direction, Vector3.forward).normalized;
 
-            var meshes = MeshCut.CutDevide(target, planePosition, planeNormal);
-
+            var meshes = MeshCut.CutDivide(target, planePosition, planeNormal);
             bool flag = true;
             for(int i = 0;i<meshes.Count;i++)
             {

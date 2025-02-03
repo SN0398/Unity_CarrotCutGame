@@ -11,7 +11,7 @@ public class DrawMeshGizmo : MonoBehaviour
         var triangles = new List<int>(meshFilter.sharedMesh.triangles);
 
 		Gizmos.color = UnityEngine.Color.yellow;
-        float VertexWidth = 0.05f;
+        float VertexWidth = 0.035f;
 
         // ’¸“_‚Ì•`‰æ
         var objectTransform = gameObject.transform;
@@ -22,6 +22,7 @@ public class DrawMeshGizmo : MonoBehaviour
             }
         }
 
+        // ƒ|ƒŠƒSƒ“‚Ì•`‰æ
         for (int i = 0; i < triangles.Count; i += 3)
         {
             Gizmos.color = UnityEngine.Color.yellow;
@@ -36,12 +37,13 @@ public class DrawMeshGizmo : MonoBehaviour
 
         }
 
-        Gizmos.color = new Color(0, 0, 1, 1f);
-        for (int i = 0; i < meshFilter.sharedMesh.normals.Length; i++)
-        {
-            Vector3 normal = objectTransform.TransformDirection(meshFilter.sharedMesh.normals[i]);
-            Vector3 vertex = objectTransform.TransformPoint(meshFilter.sharedMesh.vertices[i]);
-            Gizmos.DrawLine(vertex, vertex + normal);
-        }
+        // –@ü‚Ì•`‰æ
+        //Gizmos.color = new Color(0, 0, 1, 1f);
+        //for (int i = 0; i < meshFilter.sharedMesh.normals.Length; i++)
+        //{
+        //    Vector3 normal = objectTransform.TransformDirection(meshFilter.sharedMesh.normals[i]);
+        //    Vector3 vertex = objectTransform.TransformPoint(meshFilter.sharedMesh.vertices[i]);
+        //    Gizmos.DrawLine(vertex, vertex + normal);
+        //}
     }
 }

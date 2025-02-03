@@ -7,4 +7,5 @@ public static class Scoreboard
 {
     public static int maxPhase = 0;
     public static List<GameObject> gameObjects = new List<GameObject>();
+    public static int score = 0;
 }

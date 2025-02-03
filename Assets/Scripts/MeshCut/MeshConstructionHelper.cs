@@ -44,6 +44,9 @@ public class MeshConstructionHelper
     public VertexData GetVertexData(int index)
     {
         VertexData vert = new VertexData();
+        if (vertices.Count <= index) { Debug.LogError("index(" + index + ")がvertices(" + vertices.Count + ")の範囲外なため無効な値が参照されます"); }
+        if (uvs.Count <= index) { Debug.LogError("index(" + index + ")がuvs(" + uvs.Count + ")の範囲外なため無効な値が参照されます"); }
+        if (normals.Count <= index) { Debug.LogError("index(" + index + ")がnormals(" + normals.Count + ")の範囲外なため無効な値が参照されます"); }
         vert.Position = vertices[index];
         vert.Uv = uvs[index];
         vert.Normal = normals[index];
@@ -52,10 +55,22 @@ public class MeshConstructionHelper
 
     public MeshConstructionHelper MergeHelper(MeshConstructionHelper helper)
     {
-        vertices.AddRange(helper.vertices);
-        normals.AddRange(helper.normals);
-        uvs.AddRange(helper.uvs);
-        triangles.AddRange(helper.triangles);
+        // ポリゴンごとに走査
+        for (int i = 0; i < helper.triangles.Count; i += 3)
+        {
+            // インデックス
+            int[] index = new int[3];
+            index[0] = helper.triangles[i];
+            index[1] = helper.triangles[i + 1];
+            index[2] = helper.triangles[i + 2];
+
+            VertexData[] v = new VertexData[3];
+            v[0] = helper.GetVertexData(index[0]);
+            v[1] = helper.GetVertexData(index[1]);
+            v[2] = helper.GetVertexData(index[2]);
+
+            AddMeshSection(v[0], v[1], v[2]);
+        }
         return this;
     }
 
@@ -75,6 +90,12 @@ public class MeshConstructionHelper
         }
     }
 
+    /// <summary>
+    /// ポリゴンを追加
+    /// </summary>
+    /// <param name="vertexA">ポリゴンを構成する頂点１</param>
+    /// <param name="vertexB">ポリゴンを構成する頂点２</param>
+    /// <param name="vertexC">ポリゴンを構成する頂点３</param>
     public void AddMeshSection(VertexData vertexA, VertexData vertexB, VertexData vertexC)
     {
         int indexA = TryAddVertex(vertexA);
@@ -84,6 +105,12 @@ public class MeshConstructionHelper
         AddTriangle(indexA, indexB, indexC);
     }
 
+    /// <summary>
+    /// ポリゴン情報を追加
+    /// </summary>
+    /// <param name="indexA">ポリゴンを構成する頂点のインデックス１</param>
+    /// <param name="indexB">ポリゴンを構成する頂点のインデックス２</param>
+    /// <param name="indexC">ポリゴンを構成する頂点のインデックス３</param>
     private void AddTriangle(int indexA, int indexB, int indexC)
     {
         triangles.Add(indexA);
@@ -91,6 +118,11 @@ public class MeshConstructionHelper
         triangles.Add(indexC);
     }
 
+    /// <summary>
+    /// 頂点の追加
+    /// </summary>
+    /// <param name="vertex">登録する頂点情報</param>
+    /// <returns>追加した頂点のインデックス</returns>
     private int TryAddVertex(VertexData vertex)
     {
         // 頂点重複回避
@@ -106,18 +138,5 @@ public class MeshConstructionHelper
         int newIndex = vertices.Count - 1;
         _vertexDictionary.Add(vertex, newIndex);
         return newIndex;
-    }
-}
-
-// 切断面構築用クラス
-public class SlicedMeshConstructionHelper
-{
-    MeshConstructionHelper helper {  get; set; }
-    List<int> pointsAlongPlane {  get; set; }
-
-    public SlicedMeshConstructionHelper()
-    {
-        pointsAlongPlane = new List<int>();
-
     }
 }

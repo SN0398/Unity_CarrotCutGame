@@ -5,6 +5,7 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System;
 using System.Threading;
+using UnityEngine.SceneManagement;
 
 public class ResultView : MonoBehaviour
 {
@@ -24,11 +25,21 @@ public class ResultView : MonoBehaviour
 
         foreach (var target in cutTargets)
         {
-            GameObject cutTarget = target;
+            target.SetActive(true);
             target.transform.position = _spawnPoint;
             target.transform.localScale *= 12;
             await UniTask.Delay(TimeSpan.FromSeconds(0.4f), cancellationToken: token);
         }
+    }
+
+    public void OnClickReturnTitle()
+    {
+        foreach(var target in Scoreboard.gameObjects)
+        {
+            Destroy(target);
+        }
+        Scoreboard.gameObjects.Clear();
+        SceneManager.LoadScene("Title", LoadSceneMode.Single);
     }
 
     private void OnDrawGizmos()
