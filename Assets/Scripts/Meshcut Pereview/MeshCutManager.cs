@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks.Triggers;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UniRx;
@@ -10,6 +11,7 @@ public class MeshCutManager : MonoBehaviour
     public List<GameObject> initObjects;
     private int _currentObjectIndex = 0;
     private List<GameObject> _cutTarget = new List<GameObject>();
+    private bool _selectedCutDivideMethod = false;
 
     private struct InteractData
     {
@@ -35,6 +37,19 @@ public class MeshCutManager : MonoBehaviour
         _cutTarget.Add(tmp);
     }
 
+    public void SwitchCutMethod()
+    {
+        _selectedCutDivideMethod = !_selectedCutDivideMethod;
+        if(_selectedCutDivideMethod)
+        {
+            Debug.Log("カット方法切り替え：通常カット");
+        }
+        else
+        {
+            Debug.Log("カット方法切り替え：カット後分割");
+        }
+    }
+
     public void SwitchObject()
     {
         _currentObjectIndex = (_currentObjectIndex + 1) % initObjects.Count;
@@ -50,6 +65,70 @@ public class MeshCutManager : MonoBehaviour
 
     void Update()
     {
+        #region
+        void CutDivideMethod(GameObject target, Vector3 planePosition, Vector3 planeNormal)
+        {
+            var meshes = MeshCut.CutDivide(target, planePosition, planeNormal);
+            bool flag = true;
+            for (int i = 0; i < meshes.Count; i++)
+            {
+                var obj = Instantiate(target);
+                meshes[i].InverseTransformPoints(target);
+                obj.GetComponent<MeshFilter>().mesh = meshes[i].ConstructMesh();
+                obj.GetComponent<MeshCollider>().sharedMesh = obj.GetComponent<MeshFilter>().mesh;
+                float dotProduct = Vector3.Dot(planeNormal, Vector3.up);
+                if (dotProduct > 0)
+                {
+                    if (flag) { obj.GetComponent<Rigidbody>().AddForce(Vector3.up * 5); }
+                    else { obj.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5); }
+                }
+                else
+                {
+                    if (flag) { obj.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5); }
+                    else { obj.GetComponent<Rigidbody>().AddForce(Vector3.up * 5); }
+                }
+                flag = !flag;
+                _cutTarget.Add(obj);
+            }
+            Destroy(target);
+        }
+
+        void CutMethod(GameObject target, Vector3 planePosition, Vector3 planeNormal)
+        {
+            var meshes = MeshCut.Cut(target, planePosition, planeNormal);
+            var positiveMesh = meshes.positive;
+            var negativeMesh = meshes.negative;
+
+            var positiveObject = Instantiate(target);
+            var negativeObject = Instantiate(target);
+
+            positiveMesh.InverseTransformPoints(target);
+            negativeMesh.InverseTransformPoints(target);
+
+            positiveObject.GetComponent<MeshFilter>().mesh = positiveMesh.ConstructMesh();
+            negativeObject.GetComponent<MeshFilter>().mesh = negativeMesh.ConstructMesh();
+
+            positiveObject.GetComponent<MeshCollider>().sharedMesh = positiveObject.GetComponent<MeshFilter>().mesh;
+            negativeObject.GetComponent<MeshCollider>().sharedMesh = negativeObject.GetComponent<MeshFilter>().mesh;
+
+            float dotProduct = Vector3.Dot(planeNormal, Vector3.up);
+            if (dotProduct > 0)
+            {
+                positiveObject.GetComponent<Rigidbody>().AddForce(Vector3.up * 5);
+                negativeObject.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5);
+            }
+            else
+            {
+                positiveObject.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5);
+                negativeObject.GetComponent<Rigidbody>().AddForce(Vector3.up * 5);
+            }
+            _cutTarget.Add(positiveObject);
+            _cutTarget.Add(negativeObject);
+
+            Destroy(target);
+        }
+        #endregion
+
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
         List<GameObject> removeTargets = new List<GameObject>();
@@ -99,35 +178,19 @@ public class MeshCutManager : MonoBehaviour
             var temp = _interactObjects[target];
             _interactObjects.Remove(target);
 
+            // 面の初期化
             var planePosition = (temp.firstPosition + temp.lastPosition) / 2;
-
             Vector3 direction = temp.firstPosition - temp.lastPosition;
             var planeNormal = Vector3.Cross(direction, Vector3.forward).normalized;
 
-            var meshes = MeshCut.CutDivide(target, planePosition, planeNormal);
-            bool flag = true;
-            for(int i = 0;i<meshes.Count;i++)
+            if (_selectedCutDivideMethod)
             {
-                var obj = Instantiate(target);
-                meshes[i].InverseTransformPoints(target);
-                obj.GetComponent<MeshFilter>().mesh = meshes[i].ConstructMesh();
-                obj.GetComponent<MeshCollider>().sharedMesh = obj.GetComponent<MeshFilter>().mesh;
-                float dotProduct = Vector3.Dot(planeNormal, Vector3.up);
-                if (dotProduct > 0)
-                {
-                    if (flag) { obj.GetComponent<Rigidbody>().AddForce(Vector3.up * 5); }
-                    else { obj.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5); }
-                }
-                else
-                {
-                    if (flag) { obj.GetComponent<Rigidbody>().AddForce(-Vector3.up * 5); }
-                    else { obj.GetComponent<Rigidbody>().AddForce(Vector3.up * 5); }
-                }
-                flag = !flag;
-                _cutTarget.Add(obj);
+                CutMethod(target, planePosition, planeNormal);
             }
-
-            Destroy(target);
+            else
+            {
+                CutDivideMethod(target, planePosition, planeNormal);
+            }
         }
         removeTargets.Clear();
     }

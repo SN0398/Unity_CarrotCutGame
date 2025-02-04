@@ -467,15 +467,6 @@ public class MeshCut : MonoBehaviour
             hasContain[1] = verticesDic.TryGetValue(v[1], out containIndex[1]);
             hasContain[2] = verticesDic.TryGetValue(v[2], out containIndex[2]);
 
-            //int containNum = 0;
-
-            //// メッシュグループに割り振り済みならカウンタをインクリメント
-            //// 割り振られていなかったら-1にセット
-            //// 初期状態で返ってくる０がﾒｯｼｭｸﾞﾙｰﾌﾟｲﾝﾃﾞｯｸｽ０と重複するため
-            //if (!hasContain[0]) { containIndex[0] = -1; } else { containNum++; }
-            //if (!hasContain[1]) { containIndex[1] = -1; } else { containNum++; }
-            //if (!hasContain[2]) { containIndex[2] = -1; } else { containNum++; }
-
             // 割り振られていなかったら-1にセット
             // 初期状態で返ってくる０がﾒｯｼｭｸﾞﾙｰﾌﾟｲﾝﾃﾞｯｸｽ０と重複するため
             if (!hasContain[0]) { containIndex[0] = -1; }

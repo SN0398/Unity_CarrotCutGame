@@ -15,4 +15,9 @@ public class MeshcutView : MonoBehaviour
     {
         _meshCutManager.SwitchObject();
     }
+
+    public void OnClickSwitchCutMethod()
+    {
+        _meshCutManager.SwitchCutMethod();
+    }
 }
