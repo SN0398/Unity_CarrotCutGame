@@ -18,6 +18,11 @@ public class ThrowObjectManager : MonoBehaviour
     private int _prevIndex;         // 前回のスポーンで利用したスポーンポイントへのインデックス
     private List<IThrowObject> throwsList = new List<IThrowObject>();
 
+    private void Start()
+    {
+        _targetOrigin -= Vector3.up * 0.5f;
+    }
+
     public GameObject GenerateThrowObject()
     {
         // ランダムな位置から人参を投げる
@@ -95,5 +100,8 @@ public class ThrowObjectManager : MonoBehaviour
         {
             Gizmos.DrawSphere(obj, 0.1f); // Planeの位置に球を描画
         }
+
+        Gizmos.DrawSphere(_targetOrigin, 0.1f); // Planeの位置に球を描画
+
     }
 }

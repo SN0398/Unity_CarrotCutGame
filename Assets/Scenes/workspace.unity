@@ -963,16 +963,16 @@ MonoBehaviour:
   _knifeController: {fileID: 24770789}
   _throwManager: {fileID: 1829091580}
   _phaseData:
-  - ThrowSpeed: 0.4
+  - ThrowSpeed: 0.5
     ThrowNumPerSecond: 1
-  - ThrowSpeed: 0.4
-    ThrowNumPerSecond: 1
-  - ThrowSpeed: 0.4
-    ThrowNumPerSecond: 1
-  - ThrowSpeed: 0.4
-    ThrowNumPerSecond: 1
-  - ThrowSpeed: 0.4
-    ThrowNumPerSecond: 1
+  - ThrowSpeed: 1
+    ThrowNumPerSecond: 0.5
+  - ThrowSpeed: 1.2
+    ThrowNumPerSecond: 0.4
+  - ThrowSpeed: 1.4
+    ThrowNumPerSecond: 0.3
+  - ThrowSpeed: 2
+    ThrowNumPerSecond: 0.05
   inGameView: {fileID: 1551988668}
 --- !u!4 &1551988666
 Transform:

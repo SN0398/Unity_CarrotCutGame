@@ -47,31 +47,36 @@ public class ThrowObject : IThrowObject
     {
         float time = 0f;
         float duration = 1f;
-        Vector3 velocity = (_endPos - _startPos) / duration; // XZ方向の移動速度
-        velocity.y = 5f; // 上方向の初速度を設定（調整可能）
-        float gravity = 9.8f; // 重力加速度
 
         while (time < duration)
         {
             if (_subject == null) { break; }
 
-            time += Time.deltaTime;
+            time += Time.deltaTime * _speed;
             _distance = time / duration;
-            // XZ方向の移動
-            Vector3 pos = _startPos + velocity * time;
 
-            // Y方向の移動（放物運動）
-            pos.y = _startPos.y + velocity.y * time - 0.5f * gravity * time * time;
-
-            _subject.transform.position = pos;
+            _subject.transform.position = Parabolic(_startPos, _endPos, _distance);
 
             await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken: token);
         }
+    }
 
-        // 最終位置の補正（終点にピッタリ合うように）
-        if (_subject != null)
-        {
-            _subject.transform.position = _endPos;
-        }
+    public Vector3 Parabolic(Vector3 a, Vector3 b, float t)
+    {
+        float distance = Vector3.Distance(a, b);
+
+        float height = Mathf.Abs(b.y - a.y) + 2f;
+
+        Vector3 mid = (a + b) / 2;
+        mid.y += height;
+
+        Vector3 p0 = a;
+        Vector3 p1 = mid;
+        Vector3 p2 = b;
+
+        // ベジェ曲線
+        Vector3 position = (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+
+        return position;
     }
 }
